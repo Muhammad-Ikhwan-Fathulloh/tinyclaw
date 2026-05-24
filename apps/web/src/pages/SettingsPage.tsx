@@ -4,6 +4,7 @@ import {
   AlertTriangleIcon,
   ArrowRightIcon,
   CheckCircle2Icon,
+  ChevronRightIcon,
   EyeIcon,
   EyeOffIcon,
   KeyRoundIcon,
@@ -480,8 +481,15 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
       ) : null}
 
       <details className="group border-t border-border pt-8">
-        <summary className="cursor-pointer list-none py-1 font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
-          Advanced
+        <summary className="flex cursor-pointer list-none items-center gap-2 py-1 font-medium text-foreground transition-colors marker:content-none hover:text-primary [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 group-open:text-foreground"
+            aria-hidden="true"
+          />
+          <span>Advanced</span>
+          <span className="text-sm font-normal text-muted-foreground group-open:hidden">
+            Show storage and provider options
+          </span>
         </summary>
         <div className="mt-6 space-y-8">
           <p className="max-w-2xl leading-relaxed">

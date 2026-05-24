@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAppContext } from "@/context/app-context";
 import { NAV_ITEMS, type PageId } from "@/lib/navigation";
 import { filterModelsByProvider, formatProviderLabel } from "@/lib/models";
+import { cn } from "@/lib/utils";
 
 interface LayoutProps {
   page: PageId;
@@ -19,17 +20,18 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
       <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar">
         <div className="border-b border-border px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
-              T
-            </div>
+            <img
+              src="/tinyclaw.png"
+              alt="TinyClaw"
+              className="size-9 shrink-0 rounded-lg object-contain"
+            />
             <div>
               <p className="font-semibold text-foreground">TinyClaw</p>
-              <p className="text-xs text-muted-foreground">Web dashboard</p>
             </div>
           </div>
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-1 p-3">
+        <nav className="min-h-0 flex-1 space-y-0.5 p-3">
           {NAV_ITEMS.map((item) => {
             const active = item.id === page;
 
@@ -37,16 +39,17 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
               <button
                 key={item.id}
                 type="button"
+                title={item.description}
+                aria-current={active ? "page" : undefined}
                 onClick={() => onNavigate(item.id)}
-                className={[
-                  "w-full rounded-md px-3 py-2.5 text-left transition",
+                className={cn(
+                  "w-full rounded-md py-2 pr-3 text-left text-sm transition",
                   active
-                    ? "bg-muted text-primary"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                ].join(" ")}
+                    ? "border-l-2 border-sidebar-primary bg-sidebar-accent pl-[calc(0.75rem-2px)] font-semibold text-sidebar-foreground shadow-sm"
+                    : "border-l-2 border-transparent pl-3 text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                )}
               >
-                <p className="text-sm font-medium">{item.label}</p>
-                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{item.description}</p>
+                {item.label}
               </button>
             );
           })}
