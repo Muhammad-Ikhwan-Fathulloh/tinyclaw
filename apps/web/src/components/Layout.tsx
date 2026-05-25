@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAppContext } from "@/context/app-context";
+import { usePrefetchAppData } from "@/hooks/use-app-queries";
+import { usePrefetchTimezones } from "@/hooks/use-timezones";
 import { NAV_ITEMS, SETTINGS_NAV_ITEM, type PageId } from "@/lib/navigation";
 import { filterModelsByProvider, formatProviderLabel } from "@/lib/models";
 
@@ -13,6 +15,12 @@ interface LayoutProps {
 
 export function Layout({ page, onNavigate, children }: LayoutProps) {
   const { health, models, loading, error, refresh, setModel } = useAppContext();
+  const prefetchTimezones = usePrefetchTimezones();
+  const prefetchAppData = usePrefetchAppData();
+  const prefetchSettingsData = () => {
+    prefetchAppData();
+    prefetchTimezones();
+  };
   const activeNav =
     page === "settings"
       ? SETTINGS_NAV_ITEM
@@ -45,6 +53,8 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
                 title={item.description}
                 aria-current={active ? "page" : undefined}
                 onClick={() => onNavigate(item.id)}
+                onMouseEnter={item.id === "automations" ? prefetchSettingsData : undefined}
+                onFocus={item.id === "automations" ? prefetchSettingsData : undefined}
                 data-active={active || undefined}
                 className="sidebar-nav-link"
               >
@@ -60,6 +70,8 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
             title={SETTINGS_NAV_ITEM.description}
             aria-current={page === "settings" ? "page" : undefined}
             onClick={() => onNavigate("settings")}
+            onMouseEnter={prefetchSettingsData}
+            onFocus={prefetchSettingsData}
             data-active={page === "settings" || undefined}
             className="sidebar-nav-link !w-auto shrink-0"
           >

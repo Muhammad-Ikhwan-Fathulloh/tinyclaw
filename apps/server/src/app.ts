@@ -16,6 +16,7 @@ import {
   type AutomationResponse,
   type RunAutomationResponse,
   type TimezoneSettingsResponse,
+  type ListTimezonesResponse,
   type UpdateAutomationRequest,
   type UpdateTimezoneRequest,
   type HealthResponse,
@@ -43,6 +44,7 @@ import type { AgentChatSession } from "@tinyclaw/agent";
 import { serializeOpenApiSpec } from "./openapi/build-spec";
 import type { AgentService } from "./services/agent-service";
 import type { AutomationService } from "./services/automation-service";
+import { getTimezoneCatalog } from "./services/timezone-catalog-service";
 import { SystemStatusService } from "./services/system-status-service";
 import { tryServeStaticWeb } from "./static-web";
 
@@ -124,6 +126,10 @@ export function createApp(options: ServerOptions) {
           const result = await agent.configureProvider(body.apiKey, body.model);
 
           return json<ConfigureProviderResponse>(result);
+        }
+
+        if (request.method === "GET" && url.pathname === "/v1/timezones") {
+          return json<ListTimezonesResponse>(await getTimezoneCatalog());
         }
 
         if (request.method === "GET" && url.pathname === "/v1/settings/timezone") {

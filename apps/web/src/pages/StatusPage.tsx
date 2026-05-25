@@ -1,4 +1,3 @@
-import type { SystemStatusResponse } from "@tinyclaw/core/contract";
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -9,46 +8,22 @@ import {
   ServerIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { client, formatError } from "@/lib/client";
+import { useRefreshSystemStatus, useSystemStatusQuery } from "@/hooks/use-system-status";
+import { formatError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 
-const REFRESH_INTERVAL_MS = 10_000;
-
 export function StatusPage() {
-  const [status, setStatus] = useState<SystemStatusResponse | null>(null);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: status, error, isLoading, isFetching } = useSystemStatusQuery();
+  const refreshSystemStatus = useRefreshSystemStatus();
 
-  const refresh = useCallback(async (options?: { silent?: boolean }) => {
-    const silent = options?.silent ?? false;
-
-    if (!silent) {
-      setRefreshing(true);
-    }
-    setError(null);
-
-    try {
-      setStatus(await client.getSystemStatus());
-    } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setInitialLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-    const intervalId = window.setInterval(() => void refresh({ silent: true }), REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(intervalId);
-  }, [refresh]);
-
-  const overall = useMemo(() => deriveOverallHealth(status), [status]);
+  const initialLoading = isLoading && !status;
+  const refreshing = isFetching && !isLoading;
+  const errorMessage = error ? formatError(error) : null;
+  const overall = useMemo(() => deriveOverallHealth(status ?? null), [status]);
 
   return (
     <div className="space-y-6">
@@ -61,14 +36,14 @@ export function StatusPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <LiveIndicator active={Boolean(status) && !error} />
+          <LiveIndicator active={Boolean(status) && !errorMessage} />
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={refreshing}
             aria-label="Refresh system status"
-            onClick={() => void refresh()}
+            onClick={() => void refreshSystemStatus()}
           >
             {refreshing ? <Spinner className="size-4" /> : <RefreshCwIcon className="size-4" aria-hidden />}
             Refresh
@@ -76,7 +51,7 @@ export function StatusPage() {
         </div>
       </header>
 
-      {error ? (
+      {errorMessage ? (
         <Card className="border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20">
           <CardContent className="flex flex-wrap items-start gap-3 p-4">
             <AlertTriangleIcon
@@ -87,13 +62,13 @@ export function StatusPage() {
               <p className="text-sm font-medium text-red-900 dark:text-red-100">
                 Could not load system status
               </p>
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              <p className="text-sm text-red-800 dark:text-red-200">{errorMessage}</p>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="border-red-300 bg-white text-red-900 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-950/60"
-                onClick={() => void refresh()}
+                onClick={() => void refreshSystemStatus()}
               >
                 Try again
               </Button>
@@ -150,7 +125,7 @@ export function StatusPage() {
             />
             <MetricTile
               label="Auto refresh"
-              value={`${REFRESH_INTERVAL_MS / 1000}s`}
+              value="10s"
               hint="Background polling interval"
             />
           </div>
@@ -398,7 +373,7 @@ function StatusPageSkeleton() {
 
 type StatusTone = "ok" | "bad" | "warn";
 
-function deriveOverallHealth(status: SystemStatusResponse | null): {
+function deriveOverallHealth(status: import("@tinyclaw/core/contract").SystemStatusResponse | null): {
   tone: StatusTone;
   title: string;
   description: string;
@@ -443,7 +418,7 @@ function deriveOverallHealth(status: SystemStatusResponse | null): {
   };
 }
 
-function describeWorkerHint(status: SystemStatusResponse): string {
+function describeWorkerHint(status: import("@tinyclaw/core/contract").SystemStatusResponse): string {
   const worker = status.automationWorker;
 
   if (!worker.running) {

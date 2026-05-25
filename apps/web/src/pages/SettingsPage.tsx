@@ -9,6 +9,7 @@ import {
   EyeOffIcon,
   KeyRoundIcon,
 } from "lucide-react";
+import { TimezoneSelect } from "@/components/TimezoneSelect";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,7 +33,9 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppContext } from "@/context/app-context";
-import { client, formatError } from "@/lib/client";
+import { useModelsQuery } from "@/hooks/use-app-queries";
+import { useSaveUserTimezone, useUserTimezone } from "@/hooks/use-timezones";
+import { formatError } from "@/lib/client";
 import {
   inferProviderFromApiKey,
   type InferredProvider,
@@ -48,6 +51,7 @@ import {
   PROVIDER_OPTIONS,
   validateApiKeyForProvider,
 } from "@/lib/models";
+import { getBrowserTimezone } from "@/lib/timezones";
 import { cn } from "@/lib/utils";
 
 interface SettingsPageProps {
@@ -56,8 +60,9 @@ interface SettingsPageProps {
 
 export function SettingsPage({ onNavigate }: SettingsPageProps) {
   const { health, models, configureProvider, setModel } = useAppContext();
-  const [catalog, setCatalog] = useState<ProviderModelOption[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
+  const { data: catalogResponse, isLoading: catalogLoading, error: catalogQueryError } =
+    useModelsQuery();
+  const catalog = catalogResponse?.models ?? [];
   const [selectedProvider, setSelectedProvider] = useState<InferredProvider>("openai");
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
@@ -72,29 +77,18 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   const [replaceKeyOpen, setReplaceKeyOpen] = useState(false);
   const [modelDraft, setModelDraft] = useState("");
   const [modelSaveHint, setModelSaveHint] = useState<string | null>(null);
-  const [timezone, setTimezone] = useState(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-  );
-  const [timezoneBusy, setTimezoneBusy] = useState(false);
+  const [timezone, setTimezone] = useState(() => getBrowserTimezone());
   const [timezoneHint, setTimezoneHint] = useState<string | null>(null);
+  const { data: savedTimezone } = useUserTimezone();
+  const saveTimezoneMutation = useSaveUserTimezone();
 
   const isConfigured = health?.providerConfigured === true && models != null;
 
   useEffect(() => {
-    setCatalogLoading(true);
-
-    void client
-      .getModels()
-      .then((response) => {
-        setCatalog(response.models);
-      })
-      .catch((err) => {
-        setFormError(formatError(err));
-      })
-      .finally(() => {
-        setCatalogLoading(false);
-      });
-  }, []);
+    if (catalogQueryError) {
+      setFormError(formatError(catalogQueryError));
+    }
+  }, [catalogQueryError]);
 
   useEffect(() => {
     if (models?.provider === "openai" || models?.provider === "anthropic") {
@@ -277,29 +271,25 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   }, [clearFieldErrors, models?.provider]);
 
   useEffect(() => {
-    void client
-      .getTimezone()
-      .then((value) => setTimezone(value))
-      .catch(() => {
-        // keep browser default
-      });
-  }, []);
+    if (savedTimezone) {
+      setTimezone(savedTimezone);
+    }
+  }, [savedTimezone]);
 
-  const handleSaveTimezone = useCallback(async () => {
-    setTimezoneBusy(true);
+  const handleSaveTimezone = useCallback(() => {
     setFormError(null);
     setTimezoneHint(null);
 
-    try {
-      const saved = await client.setTimezone(timezone.trim());
-      setTimezone(saved);
-      setTimezoneHint(`Saved · ${saved}`);
-    } catch (err) {
-      setFormError(formatError(err));
-    } finally {
-      setTimezoneBusy(false);
-    }
-  }, [timezone]);
+    saveTimezoneMutation.mutate(timezone.trim(), {
+      onSuccess: (saved) => {
+        setTimezone(saved);
+        setTimezoneHint(`Saved · ${saved}`);
+      },
+      onError: (err) => {
+        setFormError(formatError(err));
+      },
+    });
+  }, [saveTimezoneMutation, timezone]);
 
   const handleSaveModel = useCallback(async () => {
     if (!modelDraft || modelDraft === models?.currentModel) {
@@ -331,12 +321,50 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-sm text-muted-foreground">
-          Connect OpenAI or Anthropic to enable chat, tools, and automations.
-        </p>
-      </div>
+    <div className="space-y-8 max-w-3xl mx-auto">
+      <Card className="w-full">
+        <CardHeader className="pb-2">
+          <CardTitle>Timezone</CardTitle>
+          <CardDescription>Default for scheduled automations.</CardDescription>
+        </CardHeader>
+        <CardContent className="max-w-md space-y-2">
+          <div className="flex items-center gap-2">
+            <TimezoneSelect
+              id="timezone"
+              className="min-w-0 flex-1"
+              value={timezone}
+              disabled={saveTimezoneMutation.isPending}
+              emptyLabel="Select timezone"
+              onValueChange={(nextTimezone) => {
+                if (nextTimezone) {
+                  setTimezone(nextTimezone);
+                  setTimezoneHint(null);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={saveTimezoneMutation.isPending || !timezone.trim()}
+              onClick={handleSaveTimezone}
+            >
+              {saveTimezoneMutation.isPending ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Saving…
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </div>
+          {timezoneHint ? (
+            <p className="text-xs text-emerald-200" role="status">
+              {timezoneHint}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card>
         {!isConfigured ? (
@@ -492,59 +520,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               onSubmitReplaceKey={(event) => void handleSubmitCredentials(event, "replace")}
             />
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Timezone</CardTitle>
-          <CardDescription>
-            Used for scheduled automations when no timezone is specified on the automation itself.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="timezone" className="text-sm font-medium text-foreground">
-              IANA timezone
-            </label>
-            <InputGroup>
-              <InputGroupInput
-                id="timezone"
-                value={timezone}
-                disabled={timezoneBusy}
-                placeholder="America/Los_Angeles"
-                onChange={(event) => {
-                  setTimezone(event.target.value);
-                  setTimezoneHint(null);
-                }}
-              />
-            </InputGroup>
-            <p className="text-xs text-muted-foreground">
-              Browser default: {Intl.DateTimeFormat().resolvedOptions().timeZone}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              disabled={timezoneBusy || !timezone.trim()}
-              onClick={() => void handleSaveTimezone()}
-            >
-              {timezoneBusy ? (
-                <>
-                  <Spinner className="mr-2" />
-                  Saving…
-                </>
-              ) : (
-                "Save timezone"
-              )}
-            </Button>
-            {timezoneHint ? (
-              <p className="text-sm text-emerald-200" role="status">
-                {timezoneHint}
-              </p>
-            ) : null}
-          </div>
         </CardContent>
       </Card>
 

@@ -584,6 +584,55 @@ export const openApiSchemas = {
       timezone: { type: "string" },
     },
   },
+  TimezoneCatalogEntry: {
+    type: "object",
+    required: [
+      "id",
+      "countryCode",
+      "countryName",
+      "city",
+      "label",
+      "offset",
+      "abbreviation",
+      "tzName",
+    ],
+    properties: {
+      id: { type: "string" },
+      countryCode: { type: "string" },
+      countryName: { type: "string" },
+      city: { type: "string" },
+      label: { type: "string" },
+      offset: { type: "string" },
+      abbreviation: { type: "string" },
+      tzName: { type: "string" },
+      aliases: {
+        type: "array",
+        items: { type: "string" },
+      },
+    },
+  },
+  TimezoneCatalogGroup: {
+    type: "object",
+    required: ["countryCode", "countryName", "timezones"],
+    properties: {
+      countryCode: { type: "string" },
+      countryName: { type: "string" },
+      timezones: {
+        type: "array",
+        items: { $ref: "#/components/schemas/TimezoneCatalogEntry" },
+      },
+    },
+  },
+  ListTimezonesResponse: {
+    type: "object",
+    required: ["groups"],
+    properties: {
+      groups: {
+        type: "array",
+        items: { $ref: "#/components/schemas/TimezoneCatalogGroup" },
+      },
+    },
+  },
 } as const;
 
 export const openApiParameters = {

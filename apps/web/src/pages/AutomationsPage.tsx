@@ -14,8 +14,9 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageResponse } from "@/components/ai-elements/message";
+import { TimezoneSelect } from "@/components/TimezoneSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -36,23 +37,41 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { client, formatError } from "@/lib/client";
+import {
+  useAutomationRunsQuery,
+  useAutomationsQuery,
+  useDeleteAutomationMutation,
+  useRunAutomationMutation,
+  useUpdateAutomationMutation,
+} from "@/hooks/use-automations";
+import { formatError } from "@/lib/client";
 import { formatFutureRelativeTime, formatSessionRelativeTime, formatSessionTimestamp } from "@/lib/chat-history";
 import { cn } from "@/lib/utils";
 
 export function AutomationsPage() {
-  const [automations, setAutomations] = useState<StoredAutomation[]>([]);
+  const {
+    data: automations = [],
+    isLoading: initialLoading,
+    isFetching: refreshing,
+    error: automationsError,
+    refetch: refetchAutomations,
+  } = useAutomationsQuery();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [runs, setRuns] = useState<AutomationRunRecord[]>([]);
+  const {
+    data: runs = [],
+    isLoading: runsLoading,
+    refetch: refetchRuns,
+  } = useAutomationRunsQuery(selectedId);
+  const updateMutation = useUpdateAutomationMutation();
+  const deleteMutation = useDeleteAutomationMutation();
+  const runMutation = useRunAutomationMutation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [runsLoading, setRunsLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StoredAutomation | null>(null);
   const [editDraft, setEditDraft] = useState<StoredAutomation | null>(null);
+
+  const busy = updateMutation.isPending || deleteMutation.isPending;
 
   const selected = automations.find((automation) => automation.id === selectedId) ?? null;
 
@@ -71,81 +90,44 @@ export function AutomationsPage() {
     });
   }, [automations, searchQuery]);
 
-  const refreshAutomations = useCallback(
-    async (options?: { silent?: boolean }) => {
-      const silent = options?.silent ?? false;
-      if (!silent) {
-        setRefreshing(true);
-      }
-      setError(null);
-
-      try {
-        const next = await client.listAutomations();
-        setAutomations(next);
-
-        if (next.length === 0) {
-          setSelectedId(null);
-        } else if (!selectedId || !next.some((automation) => automation.id === selectedId)) {
-          setSelectedId(next[0]!.id);
-        }
-      } catch (err) {
-        setError(formatError(err));
-      } finally {
-        setInitialLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [selectedId],
-  );
-
-  const loadRuns = useCallback(async (automationId: string) => {
-    setRunsLoading(true);
-
-    try {
-      setRuns(await client.listAutomationRuns(automationId));
-    } catch (err) {
-      setError(formatError(err));
-      setRuns([]);
-    } finally {
-      setRunsLoading(false);
+  useEffect(() => {
+    if (automationsError) {
+      setError(formatError(automationsError));
     }
-  }, []);
+  }, [automationsError]);
 
   useEffect(() => {
-    void refreshAutomations();
-  }, [refreshAutomations]);
-
-  useEffect(() => {
-    if (!selectedId) {
-      setRuns([]);
+    if (automations.length === 0) {
+      setSelectedId(null);
       return;
     }
 
-    void loadRuns(selectedId);
-  }, [loadRuns, selectedId]);
+    if (!selectedId || !automations.some((automation) => automation.id === selectedId)) {
+      setSelectedId(automations[0]!.id);
+    }
+  }, [automations, selectedId]);
 
   async function handleSaveEdit() {
     if (!editDraft || busy) {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      await client.updateAutomation(editDraft.id, {
-        name: editDraft.name,
-        description: editDraft.description,
-        prompt: editDraft.prompt,
-        trigger: editDraft.trigger,
-        enabled: editDraft.enabled,
+      await updateMutation.mutateAsync({
+        automationId: editDraft.id,
+        input: {
+          name: editDraft.name,
+          description: editDraft.description,
+          prompt: editDraft.prompt,
+          trigger: editDraft.trigger,
+          enabled: editDraft.enabled,
+        },
       });
       setEditDraft(null);
-      await refreshAutomations({ silent: true });
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -154,20 +136,16 @@ export function AutomationsPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      await client.deleteAutomation(deleteTarget.id);
+      await deleteMutation.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
       if (editDraft?.id === deleteTarget.id) {
         setEditDraft(null);
       }
-      await refreshAutomations({ silent: true });
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -180,9 +158,7 @@ export function AutomationsPage() {
     setError(null);
 
     try {
-      await client.runAutomation(automationId);
-      await loadRuns(automationId);
-      await refreshAutomations({ silent: true });
+      await runMutation.mutateAsync(automationId);
     } catch (err) {
       setError(formatError(err));
     } finally {
@@ -232,7 +208,7 @@ export function AutomationsPage() {
                 size="icon-sm"
                 disabled={refreshing || busy}
                 aria-label="Refresh automations"
-                onClick={() => void refreshAutomations()}
+                onClick={() => void refetchAutomations()}
               >
                 {refreshing ? <Spinner className="size-4" /> : <RefreshCwIcon className="size-4" />}
               </Button>
@@ -345,7 +321,7 @@ export function AutomationsPage() {
                     size="icon-sm"
                     disabled={runsLoading || busy}
                     aria-label="Refresh run history"
-                    onClick={() => void loadRuns(selected.id)}
+                    onClick={() => void refetchRuns()}
                   >
                     {runsLoading ? (
                       <Spinner className="size-4" />
@@ -604,16 +580,16 @@ function AutomationEditorForm({
             />
           </Field>
           <Field label="Timezone">
-            <Input
-              value={scheduleTrigger.timezone ?? ""}
-              placeholder="UTC"
+            <TimezoneSelect
+              value={scheduleTrigger.timezone}
               disabled={busy}
-              onChange={(event) =>
+              allowAccountDefault
+              onValueChange={(timezone) =>
                 onChange({
                   trigger: {
                     type: "schedule",
                     cron: scheduleTrigger.cron,
-                    timezone: event.target.value || undefined,
+                    timezone,
                   },
                 })
               }
@@ -721,11 +697,22 @@ function RunHistoryItem({ run }: { run: AutomationRunRecord }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="space-y-2">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+    <div>
+      <label className="mb-2 block text-xs font-medium text-muted-foreground">{label}</label>
       {children}
+      {hint ? (
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 }

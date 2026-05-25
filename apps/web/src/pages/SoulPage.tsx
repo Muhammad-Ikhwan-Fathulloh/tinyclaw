@@ -1,10 +1,6 @@
-import type {
-  ProfileSummary,
-  SoulStackFiles,
-  SoulStatusResponse,
-} from "@tinyclaw/core/contract";
+import type { SoulStackFiles } from "@tinyclaw/core/contract";
 import { CheckIcon, CircleIcon, RefreshCwIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,8 +11,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useProfilesQuery } from "@/hooks/use-app-queries";
+import {
+  useInitProfileSoulMutation,
+  useInitSoulMutation,
+  useSoulFileQuery,
+  useSoulStatusQuery,
+  useWriteSoulFileMutation,
+} from "@/hooks/use-resource-mutations";
 import { cn } from "@/lib/utils";
-import { client, formatError } from "@/lib/client";
+import { formatError } from "@/lib/client";
 
 const sectionClass = "rounded-md border border-border bg-card p-4";
 
@@ -61,84 +65,72 @@ const SOUL_FILES = [
 type SoulScope = "global" | string;
 
 export function SoulPage() {
-  const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
+  const {
+    data: profiles = [],
+    error: profilesError,
+    isFetching: profilesFetching,
+    refetch: refetchProfiles,
+  } = useProfilesQuery();
   const [scope, setScope] = useState<SoulScope>("global");
-  const [status, setStatus] = useState<SoulStatusResponse | null>(null);
+  const {
+    data: status = null,
+    isLoading: statusLoading,
+    isFetching: statusFetching,
+    error: statusError,
+    refetch: refetchStatus,
+  } = useSoulStatusQuery(scope);
   const [openFile, setOpenFile] = useState<keyof SoulStackFiles | null>(null);
+  const {
+    data: fileContent = "",
+    isLoading: dialogLoading,
+    error: fileError,
+  } = useSoulFileQuery(scope, openFile, openFile !== null);
+  const initSoulMutation = useInitSoulMutation();
+  const initProfileSoulMutation = useInitProfileSoulMutation();
+  const writeSoulMutation = useWriteSoulFileMutation();
   const [editContent, setEditContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
-  const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initResult, setInitResult] = useState<string[] | null>(null);
+
+  const busy =
+    initSoulMutation.isPending ||
+    initProfileSoulMutation.isPending ||
+    writeSoulMutation.isPending;
+  const loading = statusLoading && !status;
+  const refreshing = profilesFetching || statusFetching;
 
   const openFileMeta = openFile ? SOUL_FILES.find((file) => file.key === openFile) : null;
   const isDirty = editContent !== savedContent;
   const isWritable = openFileMeta?.writable ?? false;
 
-  const loadProfiles = useCallback(async () => {
-    try {
-      const response = await client.listProfiles();
-      setProfiles(response.profiles);
-    } catch (err) {
-      setError(formatError(err));
+  useEffect(() => {
+    const queryError = profilesError ?? statusError;
+    if (queryError) {
+      setError(formatError(queryError));
     }
-  }, []);
-
-  const loadScope = useCallback(async (nextScope: SoulScope) => {
-    setError(null);
-    setInitResult(null);
-
-    try {
-      const nextStatus =
-        nextScope === "global"
-          ? await client.getSoulStatus()
-          : await client.getProfileSoulStatus(nextScope);
-
-      setStatus(nextStatus);
-    } catch (err) {
-      setError(formatError(err));
-      setStatus(null);
-    }
-  }, []);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      await loadProfiles();
-      await loadScope(scope);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadProfiles, loadScope, scope]);
+  }, [profilesError, statusError]);
 
   useEffect(() => {
-    void (async () => {
-      setLoading(true);
+    if (fileError) {
+      setDialogError(formatError(fileError));
+    }
+  }, [fileError]);
 
-      try {
-        await loadProfiles();
-        await loadScope("global");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [loadProfiles, loadScope]);
+  useEffect(() => {
+    if (openFile === null || dialogLoading) {
+      return;
+    }
 
-  async function handleScopeChange(nextScope: SoulScope) {
+    setEditContent(fileContent);
+    setSavedContent(fileContent);
+  }, [openFile, fileContent, dialogLoading]);
+
+  function handleScopeChange(nextScope: SoulScope) {
     setScope(nextScope);
     setOpenFile(null);
-    setLoading(true);
-
-    try {
-      await loadScope(nextScope);
-    } finally {
-      setLoading(false);
-    }
+    setInitResult(null);
   }
 
   function handleOpenFile(fileKey: keyof SoulStackFiles) {
@@ -146,27 +138,6 @@ export function SoulPage() {
     setEditContent("");
     setSavedContent("");
     setDialogError(null);
-    void loadFileContent(fileKey);
-  }
-
-  async function loadFileContent(fileKey: keyof SoulStackFiles) {
-    setDialogLoading(true);
-    setDialogError(null);
-
-    try {
-      const response =
-        scope === "global"
-          ? await client.getSoulStatus({ includeContents: true })
-          : await client.getProfileSoulStatus(scope, { includeContents: true });
-
-      const content = response.contents?.[fileKey] ?? "";
-      setEditContent(content);
-      setSavedContent(content);
-    } catch (err) {
-      setDialogError(formatError(err));
-    } finally {
-      setDialogLoading(false);
-    }
   }
 
   function handleDialogOpenChange(open: boolean) {
@@ -177,22 +148,17 @@ export function SoulPage() {
   }
 
   async function handleInit() {
-    setBusy(true);
     setError(null);
     setInitResult(null);
 
     try {
       const result =
         scope === "global"
-          ? await client.initSoul()
-          : await client.initProfileSoul(scope);
+          ? await initSoulMutation.mutateAsync()
+          : await initProfileSoulMutation.mutateAsync(scope);
       setInitResult(result.created);
-      await loadScope(scope);
-      await loadProfiles();
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -201,24 +167,23 @@ export function SoulPage() {
       return;
     }
 
-    setBusy(true);
     setDialogError(null);
 
     try {
-      if (scope === "global") {
-        await client.writeSoulFile(openFile, editContent);
-      } else {
-        await client.writeProfileSoulFile(scope, openFile, editContent);
-      }
-
+      await writeSoulMutation.mutateAsync({
+        scope,
+        fileKey: openFile,
+        content: editContent,
+      });
       setSavedContent(editContent);
-      await loadScope(scope);
-      await loadProfiles();
     } catch (err) {
       setDialogError(formatError(err));
-    } finally {
-      setBusy(false);
     }
+  }
+
+  async function refresh() {
+    setError(null);
+    await Promise.all([refetchProfiles(), refetchStatus()]);
   }
 
   const scopeLabel =
@@ -257,7 +222,7 @@ export function SoulPage() {
                 title={profile.name}
                 subtitle={profile.soulActive ? "soul active" : "soul inactive"}
                 activeLabel={profile.soulActive ? "active" : undefined}
-                onClick={() => void handleScopeChange(profile.id)}
+                onClick={() => handleScopeChange(profile.id)}
               />
             ))}
           </div>
@@ -302,7 +267,7 @@ export function SoulPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={busy || loading}
+                  disabled={busy || refreshing}
                   onClick={() => void refresh()}
                 >
                   <RefreshCwIcon />

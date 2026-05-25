@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/context/app-context";
+import { AppQueryPrefetch } from "@/hooks/use-app-queries";
+import { queryClient } from "@/lib/query-client";
 import { Layout } from "@/components/Layout";
 import { AutomationsPage } from "@/pages/AutomationsPage";
 import { ChatPage } from "@/pages/ChatPage";
@@ -18,28 +21,31 @@ export function App() {
     useState<RequestedChatSession | null>(null);
 
   return (
-    <AppProvider>
-      <Layout page={page} onNavigate={setPage}>
-        {page === "status" ? <StatusPage /> : null}
-        {page === "chat" ? (
-          <ChatPage
-            requestedSession={requestedChatSession}
-            onRequestedSessionHandled={() => setRequestedChatSession(null)}
-            onNavigate={setPage}
-          />
-        ) : null}
-        {page === "history" ? (
-          <HistoryPage
-            onNavigate={setPage}
-            onOpenSession={setRequestedChatSession}
-          />
-        ) : null}
-        {page === "profiles" ? <ProfilesPage /> : null}
-        {page === "tools" ? <ToolsPage onNavigate={setPage} /> : null}
-        {page === "soul" ? <SoulPage /> : null}
-        {page === "automations" ? <AutomationsPage /> : null}
-        {page === "settings" ? <SettingsPage onNavigate={setPage} /> : null}
-      </Layout>
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppQueryPrefetch />
+      <AppProvider>
+        <Layout page={page} onNavigate={setPage}>
+          {page === "status" ? <StatusPage /> : null}
+          {page === "chat" ? (
+            <ChatPage
+              requestedSession={requestedChatSession}
+              onRequestedSessionHandled={() => setRequestedChatSession(null)}
+              onNavigate={setPage}
+            />
+          ) : null}
+          {page === "history" ? (
+            <HistoryPage
+              onNavigate={setPage}
+              onOpenSession={setRequestedChatSession}
+            />
+          ) : null}
+          {page === "profiles" ? <ProfilesPage /> : null}
+          {page === "tools" ? <ToolsPage onNavigate={setPage} /> : null}
+          {page === "soul" ? <SoulPage /> : null}
+          {page === "automations" ? <AutomationsPage /> : null}
+          {page === "settings" ? <SettingsPage onNavigate={setPage} /> : null}
+        </Layout>
+      </AppProvider>
+    </QueryClientProvider>
   );
 }

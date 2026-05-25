@@ -1,10 +1,14 @@
 import type { ToolSummary } from "@tinyclaw/core/contract";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MessageSquareIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
-import { client, formatError } from "@/lib/client";
+import { useToolsQuery } from "@/hooks/use-app-queries";
+import { useDeleteToolMutation } from "@/hooks/use-resource-mutations";
+import { formatError } from "@/lib/client";
 import type { PageId } from "@/lib/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 const sectionClass = "rounded-md border border-border bg-card p-4";
 
@@ -24,28 +28,14 @@ interface ToolsPageProps {
 }
 
 export function ToolsPage({ onNavigate }: ToolsPageProps) {
-  const [tools, setTools] = useState<ToolSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { data: tools = [], isLoading, error, isFetching } = useToolsQuery();
+  const deleteToolMutation = useDeleteToolMutation();
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadTools = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await client.listTools();
-      setTools(response.tools);
-    } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadTools();
-  }, [loadTools]);
+  const loading = isLoading;
+  const busy = deleteToolMutation.isPending;
+  const errorMessage = actionError ?? (error ? formatError(error) : null);
 
   async function handleDeleteTool(tool: ToolSummary) {
     if (!isDeletableTool(tool)) {
@@ -60,16 +50,12 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
       return;
     }
 
-    setBusy(true);
-    setError(null);
+    setActionError(null);
 
     try {
-      await client.deleteTool(tool.id);
-      await loadTools();
+      await deleteToolMutation.mutateAsync(tool.id);
     } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setBusy(false);
+      setActionError(formatError(err));
     }
   }
 
@@ -107,9 +93,9 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
       </section>
 
       <section className="space-y-4">
-        {error ? (
+        {errorMessage ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
+            {errorMessage}
           </p>
         ) : null}
 
@@ -125,8 +111,8 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={loading || busy}
-              onClick={() => void loadTools()}
+              disabled={loading || busy || isFetching}
+              onClick={() => void queryClient.invalidateQueries({ queryKey: queryKeys.tools.all })}
             >
               <RefreshCwIcon />
               Refresh

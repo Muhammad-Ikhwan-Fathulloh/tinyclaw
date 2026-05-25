@@ -53,6 +53,27 @@
         }
       }
     },
+    "/v1/system/status": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "System status",
+        "operationId": "getSystemStatus",
+        "responses": {
+          "200": {
+            "description": "Server and automation worker status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/openapi.json": {
       "get": {
         "tags": [
@@ -160,6 +181,107 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConfigureProviderResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/timezones": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "List available timezones",
+        "operationId": "listTimezones",
+        "responses": {
+          "200": {
+            "description": "Timezone catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTimezonesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/timezone": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get the user timezone",
+        "operationId": "getTimezone",
+        "responses": {
+          "200": {
+            "description": "Timezone settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimezoneSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Update the user timezone",
+        "operationId": "setTimezone",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTimezoneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Timezone updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimezoneSettingsResponse"
                 }
               }
             }
@@ -1128,6 +1250,315 @@
           }
         }
       }
+    },
+    "/v1/automations": {
+      "get": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "List saved automations",
+        "operationId": "listAutomations",
+        "responses": {
+          "200": {
+            "description": "Saved automations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAutomationsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "Create a saved automation",
+        "operationId": "createAutomation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAutomationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Automation created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{automationId}": {
+      "get": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "Get a saved automation",
+        "operationId": "getAutomation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AutomationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Automation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "Update a saved automation",
+        "operationId": "updateAutomation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AutomationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAutomationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Automation updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "Delete a saved automation",
+        "operationId": "deleteAutomation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AutomationId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Automation deleted"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{automationId}/run": {
+      "post": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "Run an automation now",
+        "operationId": "runAutomation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AutomationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Automation run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAutomationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{automationId}/runs": {
+      "get": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "List automation run history",
+        "operationId": "listAutomationRuns",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AutomationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Automation runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAutomationRunsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1150,6 +1581,14 @@
       },
       "ToolId": {
         "name": "toolId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "AutomationId": {
+        "name": "automationId",
         "in": "path",
         "required": true,
         "schema": {
@@ -1991,6 +2430,52 @@
           }
         }
       },
+      "AutomationWorkerStatus": {
+        "type": "object",
+        "required": [
+          "ok",
+          "running",
+          "scheduledJobs",
+          "activeRuns",
+          "providerConfigured"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "scheduledJobs": {
+            "type": "integer"
+          },
+          "activeRuns": {
+            "type": "integer"
+          },
+          "providerConfigured": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SystemStatusResponse": {
+        "type": "object",
+        "required": [
+          "server",
+          "automationWorker",
+          "checkedAt"
+        ],
+        "properties": {
+          "server": {
+            "$ref": "#/components/schemas/HealthResponse"
+          },
+          "automationWorker": {
+            "$ref": "#/components/schemas/AutomationWorkerStatus"
+          },
+          "checkedAt": {
+            "type": "string"
+          }
+        }
+      },
       "DraftAutomationRequest": {
         "type": "object",
         "required": [
@@ -2014,6 +2499,307 @@
         "properties": {
           "automation": {
             "$ref": "#/components/schemas/AutomationDefinition"
+          }
+        }
+      },
+      "StoredAutomation": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AutomationDefinition"
+          },
+          {
+            "type": "object",
+            "required": [
+              "profileId",
+              "enabled",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "profileId": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "nextRunAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lastRunAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "ListAutomationsResponse": {
+        "type": "object",
+        "required": [
+          "automations"
+        ],
+        "properties": {
+          "automations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredAutomation"
+            }
+          }
+        }
+      },
+      "AutomationResponse": {
+        "type": "object",
+        "required": [
+          "automation"
+        ],
+        "properties": {
+          "automation": {
+            "$ref": "#/components/schemas/StoredAutomation"
+          }
+        }
+      },
+      "CreateAutomationRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "prompt",
+          "trigger"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "trigger": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AutomationTriggerManual"
+              },
+              {
+                "$ref": "#/components/schemas/AutomationTriggerSchedule"
+              }
+            ]
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateAutomationRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "trigger": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AutomationTriggerManual"
+              },
+              {
+                "$ref": "#/components/schemas/AutomationTriggerSchedule"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AutomationRunRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "automationId",
+          "status",
+          "startedAt",
+          "completedAt",
+          "output",
+          "error"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "automationId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RunAutomationResponse": {
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/AutomationRunRecord"
+          }
+        }
+      },
+      "ListAutomationRunsResponse": {
+        "type": "object",
+        "required": [
+          "runs"
+        ],
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutomationRunRecord"
+            }
+          }
+        }
+      },
+      "TimezoneSettingsResponse": {
+        "type": "object",
+        "required": [
+          "timezone"
+        ],
+        "properties": {
+          "timezone": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateTimezoneRequest": {
+        "type": "object",
+        "required": [
+          "timezone"
+        ],
+        "properties": {
+          "timezone": {
+            "type": "string"
+          }
+        }
+      },
+      "TimezoneCatalogEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "countryCode",
+          "countryName",
+          "city",
+          "label",
+          "offset",
+          "abbreviation",
+          "tzName"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "countryCode": {
+            "type": "string"
+          },
+          "countryName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "string"
+          },
+          "abbreviation": {
+            "type": "string"
+          },
+          "tzName": {
+            "type": "string"
+          }
+        }
+      },
+      "TimezoneCatalogGroup": {
+        "type": "object",
+        "required": [
+          "countryCode",
+          "countryName",
+          "timezones"
+        ],
+        "properties": {
+          "countryCode": {
+            "type": "string"
+          },
+          "countryName": {
+            "type": "string"
+          },
+          "timezones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimezoneCatalogEntry"
+            }
+          }
+        }
+      },
+      "ListTimezonesResponse": {
+        "type": "object",
+        "required": [
+          "groups"
+        ],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimezoneCatalogGroup"
+            }
           }
         }
       }

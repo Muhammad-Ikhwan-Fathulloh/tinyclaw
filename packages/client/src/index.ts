@@ -35,9 +35,9 @@ import type {
   TimezoneSettingsResponse,
   UpdateAutomationRequest,
   UpdateTimezoneRequest,
+  ListTimezonesResponse,
 } from "@tinyclaw/core/contract";
 import {
-  formatClientError,
   readApiErrorMessage,
   TinyClawApiError,
 } from "@tinyclaw/core/api-error";
@@ -416,6 +416,10 @@ export class TinyClawClient {
       body: JSON.stringify({ timezone } satisfies UpdateTimezoneRequest),
     });
     return response.timezone;
+  }
+
+  async listTimezones(): Promise<ListTimezonesResponse> {
+    return this.request<ListTimezonesResponse>("/v1/timezones");
   }
 
   private async request<T>(

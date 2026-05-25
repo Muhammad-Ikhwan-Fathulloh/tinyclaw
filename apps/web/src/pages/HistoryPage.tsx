@@ -1,4 +1,4 @@
-import type { ProfileSummary, SessionSummary } from "@tinyclaw/core/contract";
+import type { SessionSummary } from "@tinyclaw/core/contract";
 import {
   AlertTriangleIcon,
   ChevronRightIcon,
@@ -11,7 +11,7 @@ import {
   Trash2Icon,
   UserIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,7 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { client, formatError } from "@/lib/client";
+import { useProfilesQuery } from "@/hooks/use-app-queries";
+import { usePurgeSessionMutation, useSessionsQuery } from "@/hooks/use-resource-mutations";
+import { formatError } from "@/lib/client";
 import {
   formatSessionRelativeTime,
   formatSessionTimestamp,
@@ -46,15 +48,37 @@ interface HistoryPageProps {
 }
 
 export function HistoryPage({ onNavigate, onOpenSession }: HistoryPageProps) {
-  const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
+  const { data: profiles = [], error: profilesError } = useProfilesQuery();
   const [profileId, setProfileId] = useState("");
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SessionSummary | null>(null);
+  const {
+    data: sessions = [],
+    isLoading: initialLoading,
+    isFetching: refreshing,
+    error: sessionsError,
+    refetch: refetchSessions,
+  } = useSessionsQuery(profileId);
+  const purgeMutation = usePurgeSessionMutation();
+  const busy = purgeMutation.isPending;
+
+  useEffect(() => {
+    const queryError = profilesError ?? sessionsError;
+    if (queryError) {
+      setError(formatError(queryError));
+    }
+  }, [profilesError, sessionsError]);
+
+  useEffect(() => {
+    if (profileId || profiles.length === 0) {
+      return;
+    }
+
+    const defaultProfile =
+      profiles.find((profile) => profile.id === "profile_default") ?? profiles[0]!;
+    setProfileId(defaultProfile.id);
+  }, [profileId, profiles]);
 
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === profileId),
@@ -78,75 +102,21 @@ export function HistoryPage({ onNavigate, onOpenSession }: HistoryPageProps) {
     [filteredSessions],
   );
 
-  const loadProfiles = useCallback(async () => {
-    try {
-      const response = await client.listProfiles();
-      setProfiles(response.profiles);
-
-      if (!profileId && response.profiles.length > 0) {
-        const defaultProfile =
-          response.profiles.find((profile) => profile.id === "profile_default") ??
-          response.profiles[0]!;
-        setProfileId(defaultProfile.id);
-      }
-    } catch (err) {
-      setError(formatError(err));
-    }
-  }, [profileId]);
-
-  const loadSessions = useCallback(async (nextProfileId: string, options?: { silent?: boolean }) => {
-    if (!nextProfileId) {
-      setSessions([]);
-      setInitialLoading(false);
-      return;
-    }
-
-    const silent = options?.silent ?? false;
-    if (!silent) {
-      setRefreshing(true);
-    }
-    setError(null);
-
-    try {
-      const response = await client.listSessions(nextProfileId, "web");
-      setSessions(response.sessions);
-    } catch (err) {
-      setError(formatError(err));
-      setSessions([]);
-    } finally {
-      setInitialLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadProfiles();
-  }, [loadProfiles]);
-
-  useEffect(() => {
-    if (profileId) {
-      setInitialLoading(true);
-      void loadSessions(profileId);
-    }
-  }, [profileId, loadSessions]);
-
   async function handleDeleteConfirm() {
-    if (!deleteTarget) {
+    if (!deleteTarget || !profileId) {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      const chatSession = client.createChatSession(deleteTarget.id, "web");
-      await chatSession.purge();
+      await purgeMutation.mutateAsync({
+        profileId,
+        sessionId: deleteTarget.id,
+      });
       setDeleteTarget(null);
-      await loadSessions(profileId, { silent: true });
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -224,7 +194,7 @@ export function HistoryPage({ onNavigate, onOpenSession }: HistoryPageProps) {
             size="sm"
             disabled={refreshing || busy || !profileId}
             aria-label="Refresh session list"
-            onClick={() => void loadSessions(profileId)}
+            onClick={() => void refetchSessions()}
           >
             {refreshing ? (
               <Spinner className="size-4" />
@@ -268,7 +238,7 @@ export function HistoryPage({ onNavigate, onOpenSession }: HistoryPageProps) {
                     variant="outline"
                     size="sm"
                     className="border-red-300 bg-white text-red-900 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-950/60"
-                    onClick={() => void loadSessions(profileId)}
+                    onClick={() => void refetchSessions()}
                   >
                     Try again
                   </Button>

@@ -1,5 +1,4 @@
-import type { ProfileDetail, ProfileSummary, ToolSummary } from "@tinyclaw/core/contract";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,21 +17,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useProfileQuery, useProfilesQuery, useToolsQuery } from "@/hooks/use-app-queries";
+import {
+  useAssignToolMutation,
+  useCreateProfileMutation,
+  useDeleteProfileMutation,
+  useInitProfileSoulMutation,
+  useUnassignToolMutation,
+  useUpdateProfileMutation,
+} from "@/hooks/use-resource-mutations";
 import { cn } from "@/lib/utils";
 import { PlusIcon } from "lucide-react";
-import { client, formatError } from "@/lib/client";
+import { formatError } from "@/lib/client";
 
 const defaultCreatePrompt = "You are a helpful assistant.";
 
 const sectionClass = "rounded-md border border-border bg-card p-4";
 
 export function ProfilesPage() {
-  const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
+  const { data: profiles = [], isLoading: profilesLoading, error: profilesError } =
+    useProfilesQuery();
+  const { data: allTools = [] } = useToolsQuery();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ProfileDetail | null>(null);
-  const [allTools, setAllTools] = useState<ToolSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const {
+    data: detail = null,
+    error: detailError,
+  } = useProfileQuery(selectedId);
+  const createMutation = useCreateProfileMutation();
+  const updateMutation = useUpdateProfileMutation();
+  const deleteMutation = useDeleteProfileMutation();
+  const assignMutation = useAssignToolMutation();
+  const unassignMutation = useUnassignToolMutation();
+  const initSoulMutation = useInitProfileSoulMutation();
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
@@ -41,51 +57,38 @@ export function ProfilesPage() {
   const [editPrompt, setEditPrompt] = useState("");
   const [assignToolId, setAssignToolId] = useState("");
 
-  const loadProfiles = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [profilesResponse, toolsResponse] = await Promise.all([
-        client.listProfiles(),
-        client.listTools(),
-      ]);
-      setProfiles(profilesResponse.profiles);
-      setAllTools(toolsResponse.tools);
-
-      if (!selectedId && profilesResponse.profiles.length > 0) {
-        setSelectedId(profilesResponse.profiles[0]!.id);
-      }
-    } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedId]);
-
-  const loadDetail = useCallback(async (profileId: string) => {
-    setError(null);
-
-    try {
-      const response = await client.getProfile(profileId);
-      setDetail(response.profile);
-      setEditName(response.profile.name);
-      setEditPrompt(response.profile.systemPrompt);
-    } catch (err) {
-      setError(formatError(err));
-      setDetail(null);
-    }
-  }, []);
+  const busy =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    assignMutation.isPending ||
+    unassignMutation.isPending ||
+    initSoulMutation.isPending;
 
   useEffect(() => {
-    void loadProfiles();
-  }, [loadProfiles]);
+    const queryError = profilesError ?? detailError;
+    if (queryError) {
+      setError(formatError(queryError));
+    }
+  }, [profilesError, detailError]);
 
   useEffect(() => {
-    if (selectedId) {
-      void loadDetail(selectedId);
+    if (profiles.length === 0) {
+      setSelectedId(null);
+      return;
     }
-  }, [selectedId, loadDetail]);
+
+    if (!selectedId || !profiles.some((profile) => profile.id === selectedId)) {
+      setSelectedId(profiles[0]!.id);
+    }
+  }, [profiles, selectedId]);
+
+  useEffect(() => {
+    if (detail) {
+      setEditName(detail.name);
+      setEditPrompt(detail.systemPrompt);
+    }
+  }, [detail]);
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -94,11 +97,10 @@ export function ProfilesPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      const response = await client.createProfile({
+      const response = await createMutation.mutateAsync({
         name: createName.trim(),
         systemPrompt: createPrompt.trim() || undefined,
       });
@@ -106,11 +108,8 @@ export function ProfilesPage() {
       setCreateName("");
       setCreatePrompt(defaultCreatePrompt);
       setSelectedId(response.profile.id);
-      await loadProfiles();
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -119,20 +118,18 @@ export function ProfilesPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      const response = await client.updateProfile(selectedId, {
-        name: editName.trim(),
-        systemPrompt: editPrompt,
+      await updateMutation.mutateAsync({
+        profileId: selectedId,
+        input: {
+          name: editName.trim(),
+          systemPrompt: editPrompt,
+        },
       });
-      setDetail(response.profile);
-      await loadProfiles();
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -145,18 +142,13 @@ export function ProfilesPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      await client.deleteProfile(selectedId);
+      await deleteMutation.mutateAsync(selectedId);
       setSelectedId(null);
-      setDetail(null);
-      await loadProfiles();
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -165,18 +157,13 @@ export function ProfilesPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      const response = await client.assignTool(selectedId, { toolId: assignToolId });
-      setDetail(response.profile);
+      await assignMutation.mutateAsync({ profileId: selectedId, toolId: assignToolId });
       setAssignToolId("");
-      await loadProfiles();
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -185,17 +172,12 @@ export function ProfilesPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      const response = await client.unassignTool(selectedId, toolId);
-      setDetail(response.profile);
-      await loadProfiles();
+      await unassignMutation.mutateAsync({ profileId: selectedId, toolId });
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -204,17 +186,12 @@ export function ProfilesPage() {
       return;
     }
 
-    setBusy(true);
     setError(null);
 
     try {
-      await client.initProfileSoul(selectedId);
-      await loadDetail(selectedId);
-      await loadProfiles();
+      await initSoulMutation.mutateAsync(selectedId);
     } catch (err) {
       setError(formatError(err));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -231,7 +208,7 @@ export function ProfilesPage() {
     }
   }
 
-  if (loading) {
+  if (profilesLoading) {
     return <PageState message="Loading profiles…" />;
   }
 

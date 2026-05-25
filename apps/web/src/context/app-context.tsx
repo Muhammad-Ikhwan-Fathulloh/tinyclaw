@@ -1,18 +1,23 @@
-import type { ConfigureProviderResponse, HealthResponse, ModelsResponse } from "@tinyclaw/core/contract";
+import type { ConfigureProviderResponse } from "@tinyclaw/core/contract";
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
-import { client, formatError } from "@/lib/client";
+import {
+  useConfigureProviderMutation,
+  useHealthQuery,
+  useModelsQuery,
+  useRefreshAppData,
+  useSetModelMutation,
+} from "@/hooks/use-app-queries";
+import { formatError } from "@/lib/client";
 
 interface AppContextValue {
-  health: HealthResponse | null;
-  models: ModelsResponse | null;
+  health: ReturnType<typeof useHealthQuery>["data"] | null;
+  models: ReturnType<typeof useModelsQuery>["data"] | null;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -23,54 +28,65 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [models, setModels] = useState<ModelsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const healthQuery = useHealthQuery();
+  const providerConfigured = healthQuery.data?.providerConfigured === true;
+  const modelsQuery = useModelsQuery({ enabled: providerConfigured });
+  const refreshAppData = useRefreshAppData();
+  const configureProviderMutation = useConfigureProviderMutation();
+  const setModelMutation = useSetModelMutation();
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    await refreshAppData();
+  }, [refreshAppData]);
 
-    try {
-      const nextHealth = await client.health();
-      setHealth(nextHealth);
-
-      if (nextHealth.providerConfigured) {
-        setModels(await client.getModels());
-      } else {
-        setModels(null);
-      }
-    } catch (err) {
-      setError(formatError(err));
-      setHealth(null);
-      setModels(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const setModel = useCallback(async (modelId: string) => {
-    await client.setModel(modelId);
-    await refresh();
-  }, [refresh]);
+  const setModel = useCallback(
+    async (modelId: string) => {
+      await setModelMutation.mutateAsync(modelId);
+    },
+    [setModelMutation],
+  );
 
   const configureProvider = useCallback(
     async (apiKey: string, model?: string) => {
-      const result = await client.configureProvider({ apiKey, model });
-      await refresh();
-      return result;
+      return configureProviderMutation.mutateAsync({ apiKey, model });
     },
-    [refresh],
+    [configureProviderMutation],
   );
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const error = useMemo(() => {
+    if (healthQuery.error) {
+      return formatError(healthQuery.error);
+    }
+
+    if (modelsQuery.error) {
+      return formatError(modelsQuery.error);
+    }
+
+    return null;
+  }, [healthQuery.error, modelsQuery.error]);
+
+  const loading =
+    healthQuery.isLoading || (providerConfigured && modelsQuery.isLoading);
 
   const value = useMemo(
-    () => ({ health, models, loading, error, refresh, setModel, configureProvider }),
-    [health, models, loading, error, refresh, setModel, configureProvider],
+    () => ({
+      health: healthQuery.data ?? null,
+      models: modelsQuery.data ?? null,
+      loading,
+      error,
+      refresh,
+      setModel,
+      configureProvider,
+    }),
+    [
+      healthQuery.data,
+      modelsQuery.data,
+      loading,
+      error,
+      refresh,
+      setModel,
+      configureProvider,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

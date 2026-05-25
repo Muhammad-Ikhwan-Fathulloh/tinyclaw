@@ -132,6 +132,17 @@ export function buildOpenApiSpec() {
           },
         },
       },
+      "/v1/timezones": {
+        get: {
+          tags: ["Models"],
+          summary: "List available timezones",
+          operationId: "listTimezones",
+          responses: {
+            "200": jsonResponse("ListTimezonesResponse", "Timezone catalog"),
+            "500": errorResponse,
+          },
+        },
+      },
       "/v1/settings/timezone": {
         get: {
           tags: ["Models"],

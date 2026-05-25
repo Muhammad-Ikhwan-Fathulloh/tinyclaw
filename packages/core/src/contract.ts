@@ -166,6 +166,29 @@ export interface UpdateTimezoneRequest {
   timezone: string;
 }
 
+export interface TimezoneCatalogEntry {
+  id: string;
+  countryCode: string;
+  countryName: string;
+  city: string;
+  label: string;
+  offset: string;
+  abbreviation: string;
+  tzName: string;
+  /** Extra searchable city names (e.g. San Francisco → America/Los_Angeles). */
+  aliases?: string[];
+}
+
+export interface TimezoneCatalogGroup {
+  countryCode: string;
+  countryName: string;
+  timezones: TimezoneCatalogEntry[];
+}
+
+export interface ListTimezonesResponse {
+  groups: TimezoneCatalogGroup[];
+}
+
 export interface ApiErrorResponse {
   error: string;
 }

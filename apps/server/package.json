@@ -10,6 +10,7 @@
     "dev:docs": "bun run scripts/serve-docs.ts"
   },
   "dependencies": {
+    "@countrystatecity/timezones": "^1.0.5",
     "@tinyclaw/agent": "workspace:*",
     "@tinyclaw/core": "workspace:*",
     "@tinyclaw/db": "workspace:*",
