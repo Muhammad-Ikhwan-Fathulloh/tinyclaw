@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@tinyclaw/core";
+import type { AgentRequest } from "./types";
 
 export function buildChatSystemPrompt(
   tools: ToolDefinition[],
@@ -7,6 +8,7 @@ export function buildChatSystemPrompt(
     enableToolLoop?: boolean;
     soul?: boolean;
     userTimezone?: string;
+    channel?: AgentRequest["channel"];
   } = {},
 ): string {
   const sections = [
@@ -37,6 +39,19 @@ export function buildChatSystemPrompt(
     sections.push(
       "",
       "You have access to tools for this session. Use them when needed, then reply to the user in natural language unless another tool call is required.",
+    );
+  }
+
+  if (options.channel === "telegram") {
+    sections.push(
+      "",
+      "You are replying in a private Telegram chat. Telegram does not render Markdown.",
+      "Use plain text only: no markdown, no HTML, no formatting syntax.",
+      "Do not use **bold**, *italic*, # headings, bullet lists with - or *, numbered markdown lists, tables, or ``` code fences.",
+      "Write like texting a friend: short paragraphs and a conversational tone.",
+      "Prefer one to three brief paragraphs unless the user asks for detail.",
+      "If you must share code or commands, put them on their own line as plain text without backticks.",
+      "Do not mention tools, JSON, or internal steps in the user-visible reply.",
     );
   }
 

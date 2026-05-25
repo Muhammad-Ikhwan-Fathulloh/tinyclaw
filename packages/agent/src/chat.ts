@@ -69,6 +69,7 @@ export function createAgentChatSession(
     enableToolLoop,
     soul: options.soul,
     userTimezone: options.userTimezone,
+    channel,
   });
   const toolContext = options.toolContext ?? {};
   const history: ChatMessage[] = options.initialHistory

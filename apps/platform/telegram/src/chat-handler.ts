@@ -4,6 +4,8 @@ import { normalizeHandshakeInput } from "@tinyclaw/core/telegram-config";
 import type { TelegramBridgeConfig } from "./config";
 import type { TelegramAuthStore } from "./auth-store";
 import { formatError, HELP_TEXT, splitTelegramMessage } from "./format";
+import { replyAsChat } from "./reply";
+import { createTypingLoop } from "./typing-indicator";
 import type { SessionStore } from "./session-store";
 
 const chatLocks = new Map<string, Promise<void>>();
@@ -132,41 +134,36 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     chatId: string,
   ): Promise<void> {
     const session = await resolveSession(chatId);
-    const statusLines: string[] = [];
+    const typingLoop = createTypingLoop(ctx);
     let reply = "";
 
-    await ctx.replyWithChatAction("typing");
+    typingLoop.start();
 
     try {
       reply = await session.sendStream(text, {
         onChunk: () => {
-          // v1: accumulate only; send one message at the end
+          // v1: accumulate only; deliver as chat bubbles at the end
         },
-        onToolStart: (event) => {
-          statusLines.push(`[tool: ${event.tool}]`);
+        onToolStart: () => {
+          typingLoop.ping();
         },
-        onToolEnd: (event) => {
-          statusLines.push(`[tool: ${event.tool} done]`);
+        onToolEnd: () => {
+          typingLoop.ping();
         },
       });
     } catch (error) {
       await ctx.reply(formatError(error));
       return;
-    }
-
-    const parts: string[] = [];
-
-    if (statusLines.length > 0) {
-      parts.push(statusLines.join("\n"));
+    } finally {
+      typingLoop.stop();
     }
 
     if (reply.trim()) {
-      parts.push(reply);
-    } else if (parts.length === 0) {
-      parts.push("(empty reply)");
+      await replyAsChat(ctx, reply);
+      return;
     }
 
-    await replyChunks(ctx, parts.join("\n\n"));
+    await ctx.reply("(empty reply)");
   }
 
   async function replyStatus(ctx: Context): Promise<void> {

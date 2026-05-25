@@ -38,3 +38,5 @@ Optional env vars:
 Private chats only. New users must paste a one-time pairing code from Settings → Telegram (unless pre-approved via allowed user IDs in Advanced settings).
 
 Session mapping is stored in `~/.tinyclaw/telegram/chat-sessions.json`.
+
+Replies are tuned for chat UX: the agent uses Telegram-specific prompting, shows a typing indicator while working, and may split longer answers into several short messages.
