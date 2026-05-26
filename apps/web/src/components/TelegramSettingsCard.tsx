@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { UpdateTelegramSettingsRequest } from "@tinyclaw/core/contract";
 import { CopyIcon, EyeIcon, EyeOffIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

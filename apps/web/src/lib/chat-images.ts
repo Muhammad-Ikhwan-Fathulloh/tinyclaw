@@ -1,5 +1,5 @@
 import type { ImageAttachment } from "@tinyclaw/core/contract";
-import { parseDataUrl } from "@tinyclaw/core";
+import { parseDataUrl } from "@tinyclaw/core/message-content";
 import type { FileUIPart } from "ai";
 
 export function filePartsToImageAttachments(files: FileUIPart[]): ImageAttachment[] {

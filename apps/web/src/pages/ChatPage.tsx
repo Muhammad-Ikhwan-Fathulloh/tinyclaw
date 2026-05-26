@@ -15,7 +15,6 @@ import {
 } from "@/components/ai-elements/message";
 import {
   PromptInput,
-  PromptInputActionAddAttachments,
   PromptInputBody,
   PromptInputFooter,
   PromptInputHeader,
@@ -561,7 +560,7 @@ export function ChatPage() {
             <PromptInputFooter className="w-full items-center justify-between border-0 px-0 pt-3 pb-0">
               <div className="flex min-w-0 items-center gap-2.5">
                 <PromptInputTools>
-                  <PromptInputActionAddAttachments label="Add image" />
+                  <ChatAttachmentButton disabled={busy || !session} />
                 </PromptInputTools>
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -743,6 +742,23 @@ function ChatAttachmentPreview() {
         </div>
       ))}
     </div>
+  );
+}
+
+function ChatAttachmentButton({ disabled }: { disabled: boolean }) {
+  const attachments = usePromptInputAttachments();
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      disabled={disabled}
+      className="h-9 rounded-full bg-muted px-4 text-sm font-medium text-foreground hover:bg-muted/80"
+      onClick={() => attachments.openFileDialog()}
+    >
+      Add image
+    </Button>
   );
 }
 
