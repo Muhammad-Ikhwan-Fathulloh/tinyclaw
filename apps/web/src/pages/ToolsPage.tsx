@@ -1,6 +1,8 @@
 import type { ToolSummary } from "@tinyclaw/core/contract";
+import { isProtectedToolId } from "@tinyclaw/core";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useToolsQuery } from "@/hooks/use-app-queries";
@@ -12,15 +14,8 @@ import { queryKeys } from "@/lib/query-keys";
 
 const sectionClass = "rounded-md border border-border bg-card p-4";
 
-const PROTECTED_TOOL_IDS = new Set([
-  "tool_write_file",
-  "tool_delete_file",
-  "tool_web_search",
-  "tool_bash",
-]);
-
 function isDeletableTool(tool: ToolSummary): boolean {
-  return !PROTECTED_TOOL_IDS.has(tool.id);
+  return !isProtectedToolId(tool.id);
 }
 
 export function ToolsPage() {
@@ -31,6 +26,7 @@ export function ToolsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const loading = isLoading;
+  const refreshing = isFetching && !isLoading;
   const busy = deleteToolMutation.isPending;
   const errorMessage = actionError ?? (error ? formatError(error) : null);
 
@@ -96,10 +92,15 @@ export function ToolsPage() {
               type="button"
               variant="outline"
               size="sm"
-              disabled={loading || busy || isFetching}
+              disabled={loading || busy || refreshing}
+              aria-label="Refresh tools"
               onClick={() => void queryClient.invalidateQueries({ queryKey: queryKeys.tools.all })}
             >
-              <RefreshCwIcon />
+              {refreshing ? (
+                <Spinner className="size-4" />
+              ) : (
+                <RefreshCwIcon className="size-4" aria-hidden />
+              )}
               Refresh
             </Button>
           </div>
