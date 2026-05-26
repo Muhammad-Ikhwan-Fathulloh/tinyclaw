@@ -13,6 +13,7 @@ import type {
   ListSessionsResponse,
   ModelsResponse,
   ProfileResponse,
+  SendMessageInput,
   SendMessageResponse,
   SessionMessagesResponse,
   SetModelResponse,
@@ -67,10 +68,12 @@ export interface StreamHandlers {
   }) => void;
 }
 
+export type SendMessageArg = string | SendMessageInput;
+
 export interface RemoteChatSession {
   id: string;
-  send(message: string): Promise<string>;
-  sendStream(message: string, handler: StreamHandler | StreamHandlers): Promise<string>;
+  send(input: SendMessageArg): Promise<string>;
+  sendStream(input: SendMessageArg, handler: StreamHandler | StreamHandlers): Promise<string>;
   compact(options?: { force?: boolean }): Promise<CompactionResponse>;
   clear(): Promise<void>;
   purge(): Promise<void>;
@@ -276,19 +279,21 @@ export class TinyClawClient {
   createChatSession(sessionId: string, channel: AgentChannel): RemoteChatSession {
     return {
       id: sessionId,
-      send: async (message: string) => {
+      send: async (input: SendMessageArg) => {
+        const body = resolveSendMessageBody(input);
         const response = await this.request<SendMessageResponse>(
           `/v1/sessions/${sessionId}/messages`,
           {
             method: "POST",
-            body: JSON.stringify({ message }),
+            body: JSON.stringify(body),
           },
         );
 
         return response.reply;
       },
-      sendStream: async (message: string, handler: StreamHandler | StreamHandlers) => {
+      sendStream: async (input: SendMessageArg, handler: StreamHandler | StreamHandlers) => {
         const handlers = normalizeStreamHandlers(handler);
+        const body = { ...resolveSendMessageBody(input), stream: true };
         const response = await this.fetchImpl(
           `${this.baseUrl}/v1/sessions/${sessionId}/messages?stream=true`,
           {
@@ -297,7 +302,7 @@ export class TinyClawClient {
               "Content-Type": "application/json",
               Accept: "text/event-stream",
             },
-            body: JSON.stringify({ message, stream: true }),
+            body: JSON.stringify(body),
           },
         );
 
@@ -560,6 +565,10 @@ function normalizeStreamHandlers(
   }
 
   return handler;
+}
+
+function resolveSendMessageBody(input: SendMessageArg): SendMessageInput {
+  return typeof input === "string" ? { message: input } : input;
 }
 
 export function createClient(options?: TinyClawClientOptions): TinyClawClient {

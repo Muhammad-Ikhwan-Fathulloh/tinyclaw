@@ -3,11 +3,19 @@ import type {
   ChatMessage,
   CompactionResponse,
   ProviderClient,
+  SendMessageInput,
   ToolCall,
   ToolContext,
   ToolDefinition,
 } from "@tinyclaw/core";
-import { partitionTools, toLlmToolDefinitions } from "@tinyclaw/core";
+import {
+  getUserMessageText,
+  messageContentHasImages,
+  messagesIncludeUserImages,
+  normalizeUserContent,
+  partitionTools,
+  toLlmToolDefinitions,
+} from "@tinyclaw/core";
 import { buildChatSystemPrompt } from "./chat-prompt";
 import {
   compactHistory,
@@ -37,9 +45,11 @@ export interface StreamHandlers {
   }) => void;
 }
 
+export type SendMessageArg = string | SendMessageInput;
+
 export interface AgentChatSession {
-  send(message: string): Promise<string>;
-  sendStream(message: string, handlers: StreamHandlers): Promise<string>;
+  send(input: SendMessageArg): Promise<string>;
+  sendStream(input: SendMessageArg, handlers: StreamHandlers): Promise<string>;
   clear(): void;
   compact(options?: { force?: boolean }): Promise<CompactionResponse>;
   getHistory(): readonly ChatMessage[];
@@ -120,21 +130,21 @@ export function createAgentChatSession(
   }
 
   return {
-    async send(message) {
-      return sendMessage(dependencies, tools, systemPrompt, history, message, "send", {
+    async send(input) {
+      return sendMessage(dependencies, tools, systemPrompt, history, resolveSendInput(input), "send", {
         enableToolLoop,
         toolContext,
         compaction: options.compaction,
         runCompaction,
       });
     },
-    async sendStream(message, handlers) {
+    async sendStream(input, handlers) {
       return sendMessage(
         dependencies,
         tools,
         systemPrompt,
         history,
-        message,
+        resolveSendInput(input),
         "stream",
         { enableToolLoop, handlers, toolContext, compaction: options.compaction, runCompaction },
       );
@@ -158,12 +168,16 @@ export function createAgentChatSession(
   };
 }
 
+function resolveSendInput(input: SendMessageArg): SendMessageInput {
+  return typeof input === "string" ? { message: input } : input;
+}
+
 async function sendMessage(
   dependencies: AgentDependencies,
   tools: ToolDefinition[],
   systemPrompt: string,
   history: ChatMessage[],
-  message: string,
+  input: SendMessageInput,
   mode: "send" | "stream",
   options: {
     enableToolLoop: boolean;
@@ -173,11 +187,16 @@ async function sendMessage(
     runCompaction?: (force: boolean) => Promise<CompactionResponse>;
   },
 ): Promise<string> {
-  history.push({ role: "user", content: message });
+  const userContent = normalizeUserContent(input.message, input.images);
+  history.push({ role: "user", content: userContent });
+  const visionTurn =
+    messageContentHasImages(userContent) || messagesIncludeUserImages(history);
 
   if (!dependencies.provider) {
-    const reply =
-      "I'm running in offline mode. Set OPENAI_API_KEY or ANTHROPIC_API_KEY to chat with me. You can still use /create to draft automations locally.";
+    const hasImages = visionTurn;
+    const reply = hasImages
+      ? "Images require a configured provider. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in Settings."
+      : "I'm running in offline mode. Set OPENAI_API_KEY or ANTHROPIC_API_KEY to chat with me. You can still use /create to draft automations locally.";
 
     if (mode === "stream" && options.handlers) {
       options.handlers.onChunk(reply);
@@ -192,7 +211,7 @@ async function sendMessage(
   const llmTools =
     enableTools && localTools.length > 0 ? toLlmToolDefinitions(localTools) : undefined;
   const providerOptions =
-    enableTools && hasWebSearch && dependencies.provider
+    enableTools && hasWebSearch && dependencies.provider && !visionTurn
       ? { webSearch: true }
       : undefined;
 
@@ -324,8 +343,12 @@ export function getLastUserMessage(history: readonly ChatMessage[]): string | nu
   for (let index = history.length - 1; index >= 0; index -= 1) {
     const message = history[index];
 
-    if (message?.role === "user" && message.content.trim()) {
-      return message.content.trim();
+    if (message?.role === "user") {
+      const text = getUserMessageText(message.content).trim();
+
+      if (text) {
+        return text;
+      }
     }
   }
 

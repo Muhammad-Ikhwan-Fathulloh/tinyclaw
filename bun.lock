@@ -11,6 +11,7 @@
     "apps/cli": {
       "name": "@tinyclaw/cli",
       "dependencies": {
+        "@crosscopy/clipboard": "^0.3.6",
         "@tinyclaw/client": "workspace:*",
         "@tinyclaw/core": "workspace:*",
       },
@@ -178,6 +179,16 @@
     "@chevrotain/types": ["@chevrotain/types@11.1.2", "", {}, "sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw=="],
 
     "@countrystatecity/timezones": ["@countrystatecity/timezones@1.0.5", "", {}, "sha512-jtOTk/KCJ/Rn+lhvM5+ASpDJ1cMcBU/D7bP5ymEf8Ib/gpJOFfHGE9Djfur+8DxZteBp3lGuhzfpak1SQPnMQg=="],
+
+    "@crosscopy/clipboard": ["@crosscopy/clipboard@0.3.6", "", { "optionalDependencies": { "@crosscopy/clipboard-darwin-arm64": "0.3.6", "@crosscopy/clipboard-darwin-x64": "0.3.6", "@crosscopy/clipboard-linux-x64-gnu": "0.3.6", "@crosscopy/clipboard-win32-x64-msvc": "0.3.6" } }, "sha512-h/LlfI5t/xsxLr63g3Os0mjoeITj7/8x8Goy5PZ+f4bk3DDgc1r5VXO462U3e8/+LjHixtvS9sTk/MoKEwSutw=="],
+
+    "@crosscopy/clipboard-darwin-arm64": ["@crosscopy/clipboard-darwin-arm64@0.3.6", "", { "os": "darwin", "cpu": "arm64" }, "sha512-l2FtoiefGpYIWL8Fvku/pEth8KlI4j4andtn8WveumMiNx/0TNI2OEhSe+mX4X/me0+b5le/PTVrOPXrxvZuiA=="],
+
+    "@crosscopy/clipboard-darwin-x64": ["@crosscopy/clipboard-darwin-x64@0.3.6", "", { "os": "darwin", "cpu": "x64" }, "sha512-fXVk7oLUkCyjVakW6VZc1JIeUcXH0/edJXAUREFpWastMlcZAp4AF/7njtlimWmANxtAQu3R2YI3ziFzEF4Neg=="],
+
+    "@crosscopy/clipboard-linux-x64-gnu": ["@crosscopy/clipboard-linux-x64-gnu@0.3.6", "", { "os": "linux", "cpu": "x64" }, "sha512-bPKMdbmPM6wa9smgpA9RSpIfWhQxd93XWmRQf9vkwrmvnP43shgXegV+vO8SyDd3ZPZy/OvHe3p/YyWNBC4S6g=="],
+
+    "@crosscopy/clipboard-win32-x64-msvc": ["@crosscopy/clipboard-win32-x64-msvc@0.3.6", "", { "os": "win32", "cpu": "x64" }, "sha512-GZ0i9XoPYQV5DhTQWiHjArE3ZTuovHmHNL7yE6Pm/91icOtrm9Mk9tVnpU/rQR9bzOn3MqN8+AFsp5NKZqTg7Q=="],
 
     "@dotenvx/dotenvx": ["@dotenvx/dotenvx@1.67.0", "", { "dependencies": { "commander": "^11.1.0", "dotenv": "^17.2.1", "eciesjs": "^0.4.10", "enquirer": "^2.4.1", "execa": "^5.1.1", "fdir": "^6.2.0", "ignore": "^5.3.0", "object-treeify": "1.1.33", "picomatch": "^4.0.4", "which": "^4.0.0", "yocto-spinner": "^1.1.0" }, "bin": { "dotenvx": "src/cli/dotenvx.js" } }, "sha512-KBfIx5OrAG6giqSkHCkQWynZmT47XkSTuuYIcvjHxlKoVRlYbxNrJmyIPaefnszU8MCvMwrrB+viJQzPqzgpcg=="],
 

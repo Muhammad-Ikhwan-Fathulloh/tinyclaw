@@ -8,6 +8,7 @@ import type {
   StreamChatHandlers,
   ToolCall,
 } from "@tinyclaw/core";
+import { messagesIncludeUserImages, toOpenAIChatUserContent } from "@tinyclaw/core";
 import { generateOpenAIResponsesChat } from "./openai-responses";
 
 export interface OpenAIProviderOptions {
@@ -34,7 +35,7 @@ export function createOpenAIProvider(
       });
     },
     generateChat(input: GenerateChatInput) {
-      if (input.providerOptions?.webSearch) {
+      if (usesResponsesApi(input)) {
         return generateOpenAIResponsesChat({
           apiKey: options.apiKey,
           model,
@@ -52,7 +53,7 @@ export function createOpenAIProvider(
       });
     },
     streamChat(input: GenerateChatInput, handlers: StreamChatHandlers) {
-      if (input.providerOptions?.webSearch) {
+      if (usesResponsesApi(input)) {
         return generateOpenAIResponsesChat({
           apiKey: options.apiKey,
           model,
@@ -74,9 +75,13 @@ export function createOpenAIProvider(
   };
 }
 
+function usesResponsesApi(input: GenerateChatInput): boolean {
+  return Boolean(input.providerOptions?.webSearch) && !messagesIncludeUserImages(input.messages);
+}
+
 type OpenAIMessage =
   | { role: "system"; content: string }
-  | { role: "user"; content: string }
+  | { role: "user"; content: string | Array<Record<string, unknown>> }
   | {
       role: "assistant";
       content: string | null;
@@ -88,7 +93,7 @@ type OpenAIMessage =
     }
   | { role: "tool"; tool_call_id: string; content: string };
 
-function toOpenAIMessages(
+export function toOpenAIMessages(
   system: string,
   messages: ChatMessage[],
 ): OpenAIMessage[] {
@@ -96,7 +101,10 @@ function toOpenAIMessages(
 
   for (const message of messages) {
     if (message.role === "user") {
-      result.push({ role: "user", content: message.content });
+      result.push({
+        role: "user",
+        content: toOpenAIChatUserContent(message.content) as string | Array<Record<string, unknown>>,
+      });
       continue;
     }
 

@@ -9,6 +9,10 @@ Short guide to what works today.
 - **Streaming** replies over HTTP
 - Works **offline** without an API key (limited responses)
 - Switch models at runtime (`/model` in CLI, or API)
+- **Image input** (vision) on configured providers:
+  - **Web** — attach images in the chat composer
+  - **CLI** — `@/path/to/image.png [optional message]`, `/paste` for clipboard images, or Ctrl+V / empty paste when the terminal supports it
+  - **Telegram** — send a photo or image document (optional caption)
 
 ## Bot profiles
 

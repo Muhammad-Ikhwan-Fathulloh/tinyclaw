@@ -1,5 +1,10 @@
 import * as readline from "node:readline/promises";
+import type { ImageAttachment } from "@tinyclaw/core";
 import type { PromptSuggestion } from "./commands";
+import { isClipboardImagePasteSupported, readClipboardImage } from "./clipboard-image";
+
+const BRACKETED_PASTE_START = "\x1b[200~";
+const BRACKETED_PASTE_END = "\x1b[201~";
 
 const BLINK_INTERVAL_MS = 530;
 const CURSOR_CHAR = "▌";
@@ -16,10 +21,15 @@ export interface PromptLineOptions {
   getSuggestions?: (input: string) => PromptSuggestion[];
 }
 
+export interface PromptLineResult {
+  text: string;
+  images?: ImageAttachment[];
+}
+
 export async function promptLine(
   prefix = "> ",
   options: PromptLineOptions = {},
-): Promise<string> {
+): Promise<PromptLineResult> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     return promptLineFallback(prefix);
   }
@@ -30,11 +40,16 @@ export async function promptLine(
     const stdin = process.stdin;
     const stdout = process.stdout;
     let value = "";
+    let attachedImages: ImageAttachment[] = [];
     let cursorVisible = true;
     let closed = false;
     let selectedIndex = 0;
     let previousRenderedLines = 0;
     let hasNavigated = false;
+    let pasteBuffer = "";
+    let inBracketedPaste = false;
+    let clipboardAttachTask: Promise<void> = Promise.resolve();
+    const clipboardPasteSupported = isClipboardImagePasteSupported();
 
     const blinkTimer = setInterval(() => {
       cursorVisible = !cursorVisible;
@@ -43,6 +58,10 @@ export async function promptLine(
 
     function currentSuggestions(): PromptSuggestion[] {
       return getSuggestions(value).slice(0, MAX_VISIBLE_SUGGESTIONS);
+    }
+
+    function cursorColumn(): number {
+      return prefix.length + value.length + 1;
     }
 
     function render() {
@@ -75,11 +94,11 @@ export async function promptLine(
       }
 
       previousRenderedLines = suggestions.length;
-      stdout.write(`\r\x1b[${prefix.length + value.length + 1}C`);
+      stdout.write(`\r\x1b[${cursorColumn()}C`);
     }
 
     function clearBelowInput() {
-      stdout.write(`\r\x1b[${prefix.length + value.length + 1}C\x1b[J`);
+      stdout.write(`\r\x1b[${cursorColumn()}C\x1b[J`);
     }
 
     function applySuggestion(suggestion: PromptSuggestion, submitAfter = false) {
@@ -89,8 +108,13 @@ export async function promptLine(
       cursorVisible = true;
 
       if (submitAfter) {
-        cleanup();
-        resolve(value);
+        void waitForClipboardAttach().then(() => {
+          cleanup();
+          resolve({
+            text: value,
+            images: attachedImages.length > 0 ? attachedImages : undefined,
+          });
+        });
         return;
       }
 
@@ -116,7 +140,64 @@ export async function promptLine(
       stdout.write(`\r\x1b[K${prefix}${value}\n`);
     }
 
-    function submit() {
+    function notifyClipboard(message: string) {
+      process.stderr.write(`\x1b[33m${message}\x1b[0m\n`);
+      render();
+    }
+
+    function queueClipboardAttach(): void {
+      clipboardAttachTask = attachClipboardImage().then(() => undefined);
+    }
+
+    async function waitForClipboardAttach(): Promise<void> {
+      await clipboardAttachTask;
+    }
+
+    async function attachClipboardImage(): Promise<boolean> {
+      if (!clipboardPasteSupported) {
+        notifyClipboard("Clipboard images are not supported on this platform.");
+        return false;
+      }
+
+      try {
+        const image = await readClipboardImage();
+
+        if (!image) {
+          notifyClipboard("No image on clipboard. Copy a screenshot or image first.");
+          return false;
+        }
+
+        attachedImages.push(image);
+        resetSelection();
+        cursorVisible = true;
+        process.stderr.write("\x1b[2mImage attached (backspace to remove)\x1b[0m\n");
+        render();
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to read clipboard image.";
+        notifyClipboard(message);
+        return false;
+      }
+    }
+
+    function finishBracketedPaste(pasted: string) {
+      inBracketedPaste = false;
+      pasteBuffer = "";
+
+      if (pasted.trim()) {
+        value += pasted;
+        resetSelection();
+        cursorVisible = true;
+        render();
+        return;
+      }
+
+      queueClipboardAttach();
+    }
+
+    async function submit() {
+      await waitForClipboardAttach();
+
       const suggestions = currentSuggestions();
 
       if (hasNavigated && suggestions.length > 0) {
@@ -129,7 +210,10 @@ export async function promptLine(
       }
 
       cleanup();
-      resolve(value);
+      resolve({
+        text: value,
+        images: attachedImages.length > 0 ? attachedImages : undefined,
+      });
     }
 
     function cancel() {
@@ -139,6 +223,40 @@ export async function promptLine(
 
     function onData(chunk: Buffer | string) {
       const key = String(chunk);
+
+      if (inBracketedPaste) {
+        pasteBuffer += key;
+
+        const endIndex = pasteBuffer.indexOf(BRACKETED_PASTE_END);
+
+        if (endIndex >= 0) {
+          const pasted = pasteBuffer.slice(0, endIndex);
+          finishBracketedPaste(pasted);
+        }
+
+        return;
+      }
+
+      if (key.includes(BRACKETED_PASTE_START)) {
+        const startIndex = key.indexOf(BRACKETED_PASTE_START);
+        const before = key.slice(0, startIndex);
+
+        if (before) {
+          value += before;
+        }
+
+        inBracketedPaste = true;
+        pasteBuffer = key.slice(startIndex + BRACKETED_PASTE_START.length);
+
+        const endIndex = pasteBuffer.indexOf(BRACKETED_PASTE_END);
+
+        if (endIndex >= 0) {
+          const pasted = pasteBuffer.slice(0, endIndex);
+          finishBracketedPaste(pasted);
+        }
+
+        return;
+      }
 
       if (key === "\u0003") {
         cancel();
@@ -190,8 +308,18 @@ export async function promptLine(
         return;
       }
 
+      if (key === "\u0016") {
+        queueClipboardAttach();
+        return;
+      }
+
       if (key === "\u007f" || key === "\b") {
-        value = value.slice(0, -1);
+        if (value.length > 0) {
+          value = value.slice(0, -1);
+        } else if (attachedImages.length > 0) {
+          attachedImages.pop();
+        }
+
         resetSelection();
         cursorVisible = true;
         render();
@@ -233,14 +361,14 @@ export async function promptLine(
   });
 }
 
-async function promptLineFallback(prefix: string): Promise<string> {
+async function promptLineFallback(prefix: string): Promise<PromptLineResult> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
   try {
-    return (await rl.question(prefix)).trimEnd();
+    return { text: (await rl.question(prefix)).trimEnd() };
   } finally {
     rl.close();
   }
@@ -248,7 +376,7 @@ async function promptLineFallback(prefix: string): Promise<string> {
 
 export async function promptSecret(prefix = "API key: "): Promise<string> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    return promptLineFallback(prefix);
+    return (await promptLineFallback(prefix)).text;
   }
 
   return new Promise((resolve, reject) => {

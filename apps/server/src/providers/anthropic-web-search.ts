@@ -6,7 +6,7 @@ import type {
   StreamChatHandlers,
   ToolCall,
 } from "@tinyclaw/core";
-import { WEB_SEARCH_TOOL_NAME } from "@tinyclaw/core";
+import { toAnthropicUserContent, WEB_SEARCH_TOOL_NAME } from "@tinyclaw/core";
 
 const MAX_PAUSE_CONTINUATIONS = 5;
 const WEB_SEARCH_MAX_USES = 5;
@@ -43,7 +43,10 @@ export function toAnthropicMessages(messages: ChatMessage[]): AnthropicMessage[]
 
   for (const message of messages) {
     if (message.role === "user") {
-      result.push({ role: "user", content: message.content });
+      result.push({
+        role: "user",
+        content: toAnthropicUserContent(message.content) as string | AnthropicContentBlock[],
+      });
       continue;
     }
 

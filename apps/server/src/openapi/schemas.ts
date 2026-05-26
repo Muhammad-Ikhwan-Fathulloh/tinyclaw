@@ -80,11 +80,40 @@ export const openApiSchemas = {
       },
     },
   },
+  ImageAttachment: {
+    type: "object",
+    required: ["mediaType", "data"],
+    properties: {
+      mediaType: { type: "string" },
+      data: { type: "string", description: "Base64-encoded image bytes" },
+    },
+  },
+  MessageContentPartText: {
+    type: "object",
+    required: ["type", "text"],
+    properties: {
+      type: { type: "string", const: "text" },
+      text: { type: "string" },
+    },
+  },
+  MessageContentPartImage: {
+    type: "object",
+    required: ["type", "mediaType", "data"],
+    properties: {
+      type: { type: "string", const: "image" },
+      mediaType: { type: "string" },
+      data: { type: "string" },
+    },
+  },
   SendMessageRequest: {
     type: "object",
     required: ["message"],
     properties: {
       message: { type: "string" },
+      images: {
+        type: "array",
+        items: { $ref: "#/components/schemas/ImageAttachment" },
+      },
       stream: { type: "boolean" },
     },
   },

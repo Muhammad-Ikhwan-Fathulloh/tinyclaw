@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import type { ChatMessage } from "@tinyclaw/core";
+import { getUserMessageText } from "@tinyclaw/core";
 import { ensureDatabaseDirectory, resolveDatabasePath } from "../database-url";
 import { migrateDatabase } from "../migrate";
 import type {
@@ -80,7 +82,7 @@ interface SessionSummaryRow {
   created_at: string;
   updated_at: string;
   message_count: number;
-  preview: string | null;
+  first_user_payload: string | null;
 }
 
 export async function createSqliteDatabase(databaseUrl: string): Promise<SqliteDatabase> {
@@ -213,13 +215,13 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
       COUNT(m.id) AS message_count,
       COALESCE(MAX(m.created_at), s.created_at) AS updated_at,
       (
-        SELECT json_extract(payload, '$.content')
+        SELECT payload
         FROM session_messages
         WHERE session_id = s.id
           AND json_extract(payload, '$.role') = 'user'
         ORDER BY seq ASC
         LIMIT 1
-      ) AS preview
+      ) AS first_user_payload
     FROM sessions s
     LEFT JOIN session_messages m ON m.session_id = s.id
     WHERE s.profile_id = ? AND s.channel = ?
@@ -498,6 +500,25 @@ function toSessionMessageRecord(row: SessionMessageRow): StoredSessionMessageRec
   };
 }
 
+function previewFromFirstUserPayload(payloadJson: string | null): string | null {
+  if (!payloadJson) {
+    return null;
+  }
+
+  try {
+    const message = parseJson(payloadJson) as ChatMessage;
+
+    if (message.role !== "user") {
+      return null;
+    }
+
+    const text = getUserMessageText(message.content).trim();
+    return text || (Array.isArray(message.content) ? "[image]" : null);
+  } catch {
+    return null;
+  }
+}
+
 function toSessionSummaryRecord(row: SessionSummaryRow): StoredSessionSummaryRecord {
   return {
     id: row.id,
@@ -506,7 +527,7 @@ function toSessionSummaryRecord(row: SessionSummaryRow): StoredSessionSummaryRec
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     messageCount: row.message_count,
-    preview: row.preview?.trim() || null,
+    preview: previewFromFirstUserPayload(row.first_user_payload),
   };
 }
 

@@ -1,4 +1,5 @@
-import type { ChatMessage } from "@tinyclaw/core/contract";
+import type { ChatMessage, MessageContentPart } from "@tinyclaw/core/contract";
+import { userContentToDisplayImages } from "@/lib/chat-images";
 
 export interface RequestedChatSession {
   profileId: string;
@@ -30,6 +31,7 @@ export interface ChatListItem {
   id: string;
   role: "user" | "assistant" | "tool";
   content: string;
+  images?: Array<{ url: string; mediaType: string }>;
   streaming?: boolean;
   toolCallId?: string;
   tool?: string;
@@ -67,10 +69,20 @@ export function chatMessagesToListItems(messages: ChatMessage[]): ChatListItem[]
 
   for (const [index, message] of messages.entries()) {
     if (message.role === "user") {
+      const content = message.content;
+      const text =
+        typeof content === "string"
+          ? content
+          : content
+              .filter((part): part is Extract<MessageContentPart, { type: "text" }> => part.type === "text")
+              .map((part) => part.text)
+              .join("\n");
+
       items.push({
         id: `history-${index}`,
         role: "user",
-        content: message.content,
+        content: text,
+        images: userContentToDisplayImages(content),
       });
       continue;
     }

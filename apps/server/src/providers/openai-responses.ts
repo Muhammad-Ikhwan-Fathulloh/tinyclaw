@@ -6,7 +6,11 @@ import type {
   StreamChatHandlers,
   ToolCall,
 } from "@tinyclaw/core";
-import { WEB_SEARCH_TOOL_NAME } from "@tinyclaw/core";
+import {
+  isMessageContentPartArray,
+  toOpenAIResponsesUserContent,
+  WEB_SEARCH_TOOL_NAME,
+} from "@tinyclaw/core";
 
 type ResponseItem = Record<string, unknown>;
 
@@ -73,15 +77,26 @@ function buildResponsesTools(tools: LlmToolDefinition[] | undefined, webSearch: 
   return [...hostedTools, ...functionTools];
 }
 
-function toResponsesInput(messages: ChatMessage[]): unknown[] {
+export function toResponsesInput(messages: ChatMessage[]): unknown[] {
   const input: unknown[] = [];
 
   for (const message of messages) {
     if (message.role === "user") {
-      input.push({
-        role: "user",
-        content: message.content,
-      });
+      const content = toOpenAIResponsesUserContent(message.content);
+
+      if (isMessageContentPartArray(message.content)) {
+        input.push({
+          type: "message",
+          role: "user",
+          content,
+        });
+      } else {
+        input.push({
+          role: "user",
+          content,
+        });
+      }
+
       continue;
     }
 

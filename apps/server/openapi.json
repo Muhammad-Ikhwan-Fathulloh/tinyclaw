@@ -660,6 +660,62 @@
         }
       }
     },
+    "/v1/sessions/{sessionId}/compact": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Compact chat session history",
+        "operationId": "compactSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompactSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compaction result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompactionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/profiles": {
       "get": {
         "tags": [
@@ -1849,6 +1905,58 @@
           }
         }
       },
+      "ImageAttachment": {
+        "type": "object",
+        "required": [
+          "mediaType",
+          "data"
+        ],
+        "properties": {
+          "mediaType": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string",
+            "description": "Base64-encoded image bytes"
+          }
+        }
+      },
+      "MessageContentPartText": {
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "MessageContentPartImage": {
+        "type": "object",
+        "required": [
+          "type",
+          "mediaType",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "image"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string"
+          }
+        }
+      },
       "SendMessageRequest": {
         "type": "object",
         "required": [
@@ -1857,6 +1965,12 @@
         "properties": {
           "message": {
             "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageAttachment"
+            }
           },
           "stream": {
             "type": "boolean"
@@ -1871,6 +1985,41 @@
         "properties": {
           "reply": {
             "type": "string"
+          }
+        }
+      },
+      "CompactSessionRequest": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CompactionResponse": {
+        "type": "object",
+        "required": [
+          "action",
+          "messagesBefore",
+          "messagesAfter"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pruned",
+              "summarized"
+            ]
+          },
+          "prunedTokens": {
+            "type": "integer"
+          },
+          "messagesBefore": {
+            "type": "integer"
+          },
+          "messagesAfter": {
+            "type": "integer"
           }
         }
       },

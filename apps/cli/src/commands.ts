@@ -13,6 +13,7 @@ export interface PromptSuggestion {
 
 export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "/help", description: "show commands" },
+  { name: "/paste", description: "attach image from clipboard" },
   { name: "/clear", description: "clear history" },
   { name: "/compact", description: "compact conversation history" },
   { name: "/create", description: "draft an automation" },

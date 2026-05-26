@@ -1,9 +1,18 @@
-import { formatClientError, type AgentChannel, type InitSoulResponse, type ModelsResponse, type SoulStatusResponse } from "@tinyclaw/core";
+import {
+  formatClientError,
+  type AgentChannel,
+  type ImageAttachment,
+  type InitSoulResponse,
+  type ModelsResponse,
+  type SendMessageInput,
+  type SoulStatusResponse,
+} from "@tinyclaw/core";
+import { mergeSendInput, parseImageLine } from "./image-input";
 import type { TinyClawClient } from "@tinyclaw/client";
 import { formatSlashCommands, resolveSuggestions } from "./commands";
 import { PromptCancelledError, promptLine } from "./prompt";
 
-const HELP_TEXT = formatSlashCommands();
+const HELP_TEXT = `${formatSlashCommands()}\n\n@/path/to/image.png [message]   attach an image from file\n/paste                            attach image from clipboard (recommended)\nCtrl+V / Cmd+V (empty paste)      attach image when terminal supports it`;
 
 interface RunChatOptions {
   client: TinyClawClient;
@@ -43,19 +52,17 @@ export async function runChat(options: RunChatOptions): Promise<void> {
 
   try {
     while (true) {
-      let line: string;
+      let promptResult: { text: string; images?: ImageAttachment[] };
 
       try {
-        line = (
-          await promptLine("> ", {
-            getSuggestions: (input) =>
-              resolveSuggestions({
-                input,
-                models: modelsCache?.models,
-                currentModel: modelsCache?.currentModel,
-              }),
-          })
-        ).trim();
+        promptResult = await promptLine("> ", {
+          getSuggestions: (input) =>
+            resolveSuggestions({
+              input,
+              models: modelsCache?.models,
+              currentModel: modelsCache?.currentModel,
+            }),
+        });
       } catch (error) {
         if (error instanceof PromptCancelledError) {
           break;
@@ -64,11 +71,14 @@ export async function runChat(options: RunChatOptions): Promise<void> {
         throw error;
       }
 
-      if (!line) {
+      const line = promptResult.text.trim();
+      const hasImages = Boolean(promptResult.images?.length);
+
+      if (!line && !hasImages) {
         continue;
       }
 
-      if (isExitCommand(line)) {
+      if (line && isExitCommand(line)) {
         break;
       }
 
@@ -102,6 +112,45 @@ export async function runChat(options: RunChatOptions): Promise<void> {
 
       if (line === "/help") {
         console.log(`${HELP_TEXT}\n`);
+        continue;
+      }
+
+      if (line === "/paste") {
+        if (processing) {
+          continue;
+        }
+
+        processing = true;
+
+        try {
+          const { readClipboardImage } = await import("./clipboard-image");
+          const image = await readClipboardImage();
+
+          if (!image) {
+            console.log("No image on clipboard. Copy a screenshot or image first.\n");
+            continue;
+          }
+
+          lastUserMessage = "";
+
+          await session.sendStream({ message: "", images: [image] }, {
+            onChunk: (delta) => {
+              process.stdout.write(delta);
+            },
+            onToolStart: (event) => {
+              process.stdout.write(`\n\x1b[2m[tool: ${event.tool}]\x1b[0m\n`);
+            },
+            onToolEnd: (event) => {
+              process.stdout.write(`\x1b[2m[tool: ${event.tool} done]\x1b[0m\n`);
+            },
+          });
+          process.stdout.write("\n\n");
+        } catch (error) {
+          console.log(`${formatError(error)}\n`);
+        } finally {
+          processing = false;
+        }
+
         continue;
       }
 
@@ -197,10 +246,25 @@ export async function runChat(options: RunChatOptions): Promise<void> {
       }
 
       processing = true;
-      lastUserMessage = line;
+
+      let sendInput: SendMessageInput;
 
       try {
-        await session.sendStream(line, {
+        const fromPath = await parseImageLine(line);
+        sendInput = mergeSendInput(line, {
+          promptImages: promptResult.images,
+          fromPath,
+        });
+      } catch (error) {
+        console.log(`${formatError(error)}\n`);
+        processing = false;
+        continue;
+      }
+
+      lastUserMessage = sendInput.message || line;
+
+      try {
+        await session.sendStream(sendInput, {
           onChunk: (delta) => {
             process.stdout.write(delta);
           },

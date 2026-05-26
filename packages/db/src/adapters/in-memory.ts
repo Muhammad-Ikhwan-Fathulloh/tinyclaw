@@ -1,3 +1,4 @@
+import { getUserMessageText, type MessageContentPart } from "@tinyclaw/core";
 import type {
   DatabaseAdapter,
   StoredAutomationRecord,
@@ -215,8 +216,12 @@ function summarizeSession(
   const preview =
     typeof firstUser?.payload === "object" &&
     firstUser.payload !== null &&
-    typeof (firstUser.payload as { content?: unknown }).content === "string"
-      ? ((firstUser.payload as { content: string }).content.trim() || null)
+    (firstUser.payload as { role?: string }).role === "user"
+      ? (() => {
+          const content = (firstUser.payload as { content: string | unknown[] }).content;
+          const text = getUserMessageText(content as string | MessageContentPart[]).trim();
+          return text || (Array.isArray(content) ? "[image]" : null);
+        })()
       : null;
 
   return {

@@ -101,8 +101,23 @@ export interface CompactionResponse {
   messagesAfter: number;
 }
 
+export type MessageContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; mediaType: string; data: string };
+
+export interface ImageAttachment {
+  mediaType: string;
+  data: string;
+}
+
+export interface SendMessageInput {
+  message: string;
+  images?: ImageAttachment[];
+}
+
 export interface SendMessageRequest {
   message: string;
+  images?: ImageAttachment[];
   stream?: boolean;
 }
 
@@ -370,7 +385,7 @@ export interface ToolCall {
 }
 
 export type ChatMessage =
-  | { role: "user"; content: string }
+  | { role: "user"; content: string | MessageContentPart[] }
   | {
       role: "assistant";
       content: string;

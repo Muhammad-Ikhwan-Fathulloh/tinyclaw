@@ -131,4 +131,4 @@ export const HELP_TEXT = `TinyClaw Telegram commands:
 /new — start a new conversation
 /status — server and model status
 
-Send any other text to chat with the agent.`;
+Send text or a photo (optional caption) to chat with the agent.`;

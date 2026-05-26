@@ -4,6 +4,10 @@ import type {
   LlmToolDefinition,
   ProviderClient,
 } from "@tinyclaw/core";
+import {
+  estimateUserContentTokens,
+  stripImagesForCompaction,
+} from "@tinyclaw/core";
 
 export const COMPACTION_BUFFER = 20_000;
 export const PRUNE_MINIMUM = 20_000;
@@ -70,18 +74,45 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / TOKEN_ESTIMATE_RATIO);
 }
 
+function estimateMessageTokens(messages: readonly ChatMessage[]): number {
+  let total = 0;
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      total += estimateUserContentTokens(message.content);
+      continue;
+    }
+
+    if (message.role === "assistant") {
+      total += estimateTokens(message.content);
+
+      if (message.toolCalls?.length) {
+        total += estimateTokens(JSON.stringify(message.toolCalls));
+      }
+
+      if (message.providerContent?.length) {
+        total += estimateTokens(JSON.stringify(message.providerContent));
+      }
+
+      continue;
+    }
+
+    total += estimateTokens(message.content);
+  }
+
+  return total;
+}
+
 export function estimateHistoryTokens(
   messages: readonly ChatMessage[],
   systemPrompt: string,
   tools?: LlmToolDefinition[],
 ): number {
-  const payload = JSON.stringify({
-    system: systemPrompt,
-    messages,
-    tools: tools ?? [],
-  });
-
-  return estimateTokens(payload);
+  return (
+    estimateTokens(systemPrompt) +
+    estimateMessageTokens(messages) +
+    estimateTokens(JSON.stringify(tools ?? []))
+  );
 }
 
 export function reservedTokens(maxOutputTokens: number): number {
@@ -261,7 +292,7 @@ export async function compactHistory(
   const result = await input.provider.generateChat({
     system: COMPACTION_SYSTEM,
     messages: [
-      ...head,
+      ...stripImagesForCompaction(head),
       { role: "user", content: compactionPrompt },
     ],
   });

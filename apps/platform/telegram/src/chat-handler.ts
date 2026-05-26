@@ -1,5 +1,7 @@
 import type { TinyClawClient, RemoteChatSession } from "@tinyclaw/client";
+import type { SendMessageInput } from "@tinyclaw/core";
 import type { Context } from "grammy";
+import { buildTelegramImageInput } from "./images";
 import { normalizeHandshakeInput } from "@tinyclaw/core/telegram-config";
 import type { TelegramBridgeConfig } from "./config";
 import type { TelegramAuthStore } from "./auth-store";
@@ -42,19 +44,39 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     }
 
     const text = ctx.message?.text?.trim();
-
-    if (!text) {
-      await ctx.reply("Text messages only.");
-      return;
-    }
-
     const chatId = String(ctx.chat.id);
 
     await withChatLock(chatId, async () => {
       await authStore.reload();
 
       if (!authStore.isAuthorized(userId)) {
+        if (!text) {
+          const imageInput = await tryBuildImageInput(ctx);
+
+          if (imageInput) {
+            await ctx.reply("Send your pairing code as text to link this chat.");
+            return;
+          }
+
+          await ctx.reply("Text messages only.");
+          return;
+        }
+
         await handlePairing(ctx, text, userId);
+        return;
+      }
+
+      const imageInput = await tryBuildImageInput(ctx);
+
+      if (imageInput) {
+        await handleChatMessage(ctx, imageInput, chatId);
+        return;
+      }
+
+      if (!text) {
+        await ctx.reply(
+          "Send text or a photo (with optional caption). Other media is not supported yet.",
+        );
         return;
       }
 
@@ -63,7 +85,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
       }
 
-      await handleChatMessage(ctx, text, chatId);
+      await handleChatMessage(ctx, { message: text }, chatId);
     });
   };
 
@@ -137,9 +159,18 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     }
   }
 
+  async function tryBuildImageInput(ctx: Context) {
+    try {
+      return await buildTelegramImageInput(ctx);
+    } catch (error) {
+      await ctx.reply(formatError(error));
+      return null;
+    }
+  }
+
   async function handleChatMessage(
     ctx: Context,
-    text: string,
+    input: SendMessageInput,
     chatId: string,
   ): Promise<void> {
     const session = await resolveSession(chatId);
@@ -149,7 +180,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     typingLoop.start();
 
     try {
-      reply = await session.sendStream(text, {
+      reply = await session.sendStream(input, {
         onChunk: () => {
           // v1: accumulate only; deliver as chat bubbles at the end
         },

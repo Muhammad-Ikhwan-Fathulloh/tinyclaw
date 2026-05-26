@@ -15,8 +15,10 @@ import {
 } from "@/components/ai-elements/message";
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputHeader,
   PromptInputSelect,
   PromptInputSelectContent,
   PromptInputSelectItem,
@@ -24,6 +26,8 @@ import {
   PromptInputSelectValue,
   PromptInputSubmit,
   PromptInputTextarea,
+  PromptInputTools,
+  usePromptInputAttachments,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +39,9 @@ import {
 import { useAppContext } from "@/context/app-context";
 import { useAppNavigation } from "@/hooks/use-app-navigation";
 import { cn } from "@/lib/utils";
-import { ArrowUpIcon, ChevronRightIcon, EllipsisIcon } from "lucide-react";
+import { ArrowUpIcon, ChevronRightIcon, EllipsisIcon, XIcon } from "lucide-react";
+import type { FileUIPart } from "ai";
+import { filePartsToImageAttachments } from "@/lib/chat-images";
 import { client, formatError } from "@/lib/client";
 import { filterModelsByProvider } from "@/lib/models";
 import {
@@ -332,8 +338,10 @@ export function ChatPage() {
   }, [session, profileId, location.pathname, navigate]);
 
   const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text || !session || busy) {
+    async (text: string, files: FileUIPart[] = []) => {
+      const images = filePartsToImageAttachments(files);
+
+      if ((!text.trim() && images.length === 0) || !session || busy) {
         return;
       }
 
@@ -341,7 +349,15 @@ export function ChatPage() {
       setError(null);
       setMessages((current) => [
         ...current,
-        { id: crypto.randomUUID(), role: "user", content: text },
+        {
+          id: crypto.randomUUID(),
+          role: "user",
+          content: text,
+          images: images.map((image) => ({
+            mediaType: image.mediaType,
+            url: `data:${image.mediaType};base64,${image.data}`,
+          })),
+        },
       ]);
       setMessages((current) => [
         ...current,
@@ -349,7 +365,7 @@ export function ChatPage() {
       ]);
 
       try {
-        await session.sendStream(text, {
+        await session.sendStream({ message: text, images: images.length > 0 ? images : undefined }, {
           onChunk: (delta) => {
             setMessages((current) => {
               const next = [...current];
@@ -489,7 +505,7 @@ export function ChatPage() {
                 >
                   <MessageContent className="ml-0 max-w-full group-[.is-user]:ml-0">
                     {message.role === "user" ? (
-                      message.content
+                      <UserMessageContent message={message} />
                     ) : message.role === "tool" ? (
                       <ToolMessageContent message={message} />
                     ) : (
@@ -526,9 +542,15 @@ export function ChatPage() {
             </p>
           ) : null}
           <PromptInput
+            accept="image/*"
+            multiple
+            maxFiles={5}
             className="[&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:flex-col [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:gap-0 [&_[data-slot=input-group]]:rounded-md [&_[data-slot=input-group]]:border-border [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:p-4 [&_[data-slot=input-group]]:shadow-sm"
-            onSubmit={({ text }) => void sendMessage(text.trim())}
+            onSubmit={({ text, files }) => void sendMessage(text.trim(), files)}
           >
+            <PromptInputHeader>
+              <ChatAttachmentPreview />
+            </PromptInputHeader>
             <PromptInputBody>
               <PromptInputTextarea
                 className="!min-h-10 max-h-32 px-1 py-0.5 text-sm"
@@ -538,6 +560,9 @@ export function ChatPage() {
             </PromptInputBody>
             <PromptInputFooter className="w-full items-center justify-between border-0 px-0 pt-3 pb-0">
               <div className="flex min-w-0 items-center gap-2.5">
+                <PromptInputTools>
+                  <PromptInputActionAddAttachments label="Add image" />
+                </PromptInputTools>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -664,6 +689,59 @@ export function ChatPage() {
           </PromptInput>
         </div>
       </div>
+    </div>
+  );
+}
+
+function UserMessageContent({ message }: { message: ChatListItem }) {
+  return (
+    <div className="space-y-2">
+      {message.images?.length ? (
+        <div className="flex flex-wrap gap-2">
+          {message.images.map((image) => (
+            <img
+              key={image.url}
+              src={image.url}
+              alt=""
+              className="max-h-40 max-w-full rounded-md border border-border object-contain"
+            />
+          ))}
+        </div>
+      ) : null}
+      {message.content ? <p className="whitespace-pre-wrap">{message.content}</p> : null}
+    </div>
+  );
+}
+
+function ChatAttachmentPreview() {
+  const attachments = usePromptInputAttachments();
+
+  if (attachments.files.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex w-full flex-wrap gap-2 pb-2">
+      {attachments.files.map((file) => (
+        <div
+          key={file.id}
+          className="relative size-16 overflow-hidden rounded-md border border-border bg-muted"
+        >
+          <img
+            src={file.url}
+            alt={file.filename ?? "attachment"}
+            className="size-full object-cover"
+          />
+          <button
+            type="button"
+            className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-foreground hover:bg-background"
+            aria-label="Remove attachment"
+            onClick={() => attachments.remove(file.id)}
+          >
+            <XIcon className="size-3" />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

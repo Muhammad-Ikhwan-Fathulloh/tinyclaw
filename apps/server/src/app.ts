@@ -1,5 +1,6 @@
 import {
   formatServerError,
+  TinyClawApiError,
   TINYCLAW_API_VERSION,
   type AgentChannel,
   type ApiErrorResponse,
@@ -28,6 +29,7 @@ import {
   type ListSessionsResponse,
   type ModelsResponse,
   type ProfileResponse,
+  type SendMessageInput,
   type SendMessageRequest,
   type SendMessageResponse,
   type SessionMessagesResponse,
@@ -378,16 +380,17 @@ export function createApp(options: ServerOptions) {
           }
 
           const body = await readJson<SendMessageRequest>(request);
+          const input = { message: body.message ?? "", images: body.images };
           const wantsStream =
             body.stream === true ||
             url.searchParams.get("stream") === "true" ||
             request.headers.get("Accept")?.includes("text/event-stream");
 
           if (wantsStream) {
-            return streamMessage(session, body.message);
+            return streamMessage(session, input);
           }
 
-          const reply = await session.send(body.message);
+          const reply = await session.send(input);
 
           return json<SendMessageResponse>({ reply });
         }
@@ -503,6 +506,10 @@ export function createApp(options: ServerOptions) {
 
         return errorResponse("Not found", 404);
       } catch (err) {
+        if (err instanceof TinyClawApiError) {
+          return errorResponse(err.message, err.status);
+        }
+
         return errorResponse(formatServerError(err), 500);
       }
     },
@@ -529,7 +536,7 @@ function errorResponse(message: string, status: number): Response {
   return Response.json({ error: message } satisfies ApiErrorResponse, { status });
 }
 
-function streamMessage(session: AgentChatSession, message: string): Response {
+function streamMessage(session: AgentChatSession, input: SendMessageInput): Response {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -541,7 +548,7 @@ function streamMessage(session: AgentChatSession, message: string): Response {
       };
 
       try {
-        const reply = await session.sendStream(message, {
+        const reply = await session.sendStream(input, {
           onChunk: (delta) => send({ type: "chunk", delta }),
           onToolStart: (event) =>
             send({
