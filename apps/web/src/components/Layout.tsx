@@ -39,7 +39,7 @@ export function Layout() {
           aria-label="Main navigation"
           data-collapsed={collapsed || undefined}
           className={cn(
-            "flex h-full shrink-0 flex-col overflow-hidden border-r border-border/60 bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none",
+            "flex h-full shrink-0 flex-col overflow-hidden border-r border-border/50 bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none",
             collapsed ? "w-14" : "w-60",
           )}
         >
@@ -83,19 +83,12 @@ export function Layout() {
           <nav
             className={cn(
               "no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto",
-              collapsed ? "gap-2.5 p-2" : "gap-1 p-3",
+              collapsed ? "p-2" : "p-3",
             )}
           >
             {NAV_GROUPS.map((group, groupIndex) => (
-              <div
-                key={group.id}
-                className={cn(
-                  groupIndex > 0 &&
-                    collapsed &&
-                    "border-t border-border/45 pt-2.5",
-                )}
-              >
-                {!collapsed && groupIndex > 0 ? (
+              <div key={group.id}>
+                {groupIndex > 0 ? (
                   <div className="sidebar-nav-divider" aria-hidden="true" />
                 ) : null}
                 <div
@@ -128,8 +121,8 @@ export function Layout() {
 
           <div
             className={cn(
-              "flex shrink-0 border-t border-border/60",
-              collapsed ? "justify-center p-2" : "p-3",
+              "sidebar-nav-footer flex shrink-0 border-t border-border/50",
+              collapsed ? "justify-center px-2 py-2.5" : "px-3 py-3",
             )}
           >
             <SidebarNavButton
