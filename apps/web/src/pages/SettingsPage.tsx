@@ -903,8 +903,8 @@ function ConnectedProviderSection({
 
   return (
     <>
-      <div className="space-y-2">
-        <label htmlFor="connected-model" className="text-sm font-medium text-foreground">
+      <div className="space-y-3">
+        <label htmlFor="connected-model" className="block text-sm font-medium text-foreground">
           Model
         </label>
         <div className="flex flex-wrap items-center gap-2">

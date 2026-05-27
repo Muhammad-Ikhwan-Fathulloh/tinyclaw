@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UserIcon } from "lucide-react";
+import { ChevronRightIcon, UserIcon } from "lucide-react";
 import { TinyClawApiError } from "@tinyclaw/core/api-error";
 import { Button } from "@/components/ui/button";
 import {
@@ -150,42 +150,58 @@ export function UserContextCard() {
                 </p>
               </div>
             ) : (
-              <>
-                <Textarea
-                  value={content}
-                  disabled={busy}
-                  rows={14}
-                  className="font-mono text-sm"
-                  aria-label="USER.md content"
-                  onChange={(event) => {
-                    setContent(event.target.value);
-                    setHint(null);
-                    if (formError) {
-                      setFormError(null);
-                    }
-                  }}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={busy || !isDirty}
-                    onClick={() => void handleSave()}
-                  >
-                    {writeMutation.isPending ? (
-                      <>
-                        <Spinner className="mr-2" />
-                        Saving…
-                      </>
-                    ) : (
-                      "Save"
-                    )}
-                  </Button>
+              <details className="group text-sm">
+                <summary className="flex cursor-pointer list-none items-center gap-2 py-1 font-medium text-foreground transition-colors marker:content-none hover:text-primary [&::-webkit-details-marker]:hidden">
+                  <ChevronRightIcon
+                    className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 group-open:text-foreground"
+                    aria-hidden="true"
+                  />
+                  <span>View and edit content</span>
                   {isDirty ? (
-                    <span className="text-xs text-muted-foreground">Unsaved changes</span>
-                  ) : null}
+                    <span className="text-xs font-normal text-muted-foreground">Unsaved changes</span>
+                  ) : (
+                    <span className="text-xs font-normal text-muted-foreground group-open:hidden">
+                      Expand to edit USER.md
+                    </span>
+                  )}
+                </summary>
+                <div className="mt-3 space-y-4">
+                  <Textarea
+                    value={content}
+                    disabled={busy}
+                    rows={14}
+                    className="font-mono text-sm"
+                    aria-label="USER.md content"
+                    onChange={(event) => {
+                      setContent(event.target.value);
+                      setHint(null);
+                      if (formError) {
+                        setFormError(null);
+                      }
+                    }}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy || !isDirty}
+                      onClick={() => void handleSave()}
+                    >
+                      {writeMutation.isPending ? (
+                        <>
+                          <Spinner className="mr-2" />
+                          Saving…
+                        </>
+                      ) : (
+                        "Save"
+                      )}
+                    </Button>
+                    {isDirty ? (
+                      <span className="text-xs text-muted-foreground">Unsaved changes</span>
+                    ) : null}
+                  </div>
                 </div>
-              </>
+              </details>
             )}
 
             {hint ? (
