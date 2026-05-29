@@ -7,11 +7,13 @@ export function wrapPersistedSession(
   sessionId: string,
   session: AgentChatSession,
   db: DatabaseAdapter,
+  options: { onBeginTurn?: (sessionId: string) => void } = {},
 ): AgentChatSession {
   let lastPersistedRevision = session.getHistoryRevision();
 
   return {
     async send(message) {
+      options.onBeginTurn?.(sessionId);
       const before = session.getHistory().length;
       const revisionBefore = session.getHistoryRevision();
       const reply = await session.send(message);
@@ -20,6 +22,7 @@ export function wrapPersistedSession(
       return reply;
     },
     async sendStream(message, handlers) {
+      options.onBeginTurn?.(sessionId);
       const before = session.getHistory().length;
       const revisionBefore = session.getHistoryRevision();
       const reply = await session.sendStream(message, handlers);

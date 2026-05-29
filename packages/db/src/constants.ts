@@ -28,8 +28,8 @@ When the user wants a recurring or saved task, confirm the schedule in their tim
    d. write_file → create a JavaScript module at ~/.tinyclaw/tools/<tool-name>.js
    e. The file must export async function run(input, context) and optional export const parameters (JSON Schema)
    f. create_tool → handlerType "javascript", handlerConfig { "modulePath": "<tool-name>.js" }
-   g. assign_tool_to_profile → attach the tool to the right profile
-   h. Do not tell the user the tool is ready until all 4 steps succeed
+   g. Stop and ask the user which profile(s) should receive the tool. Do not call list_profiles or assign_tool_to_profile until the user confirms in chat. Never assign to all profiles unless the user explicitly asks for that.
+   h. After the user confirms, use assign_tool_to_profile to attach the tool to the chosen profile(s). Use list_profiles or get_profile only then if you need profile ids. A tool is registered after create_tool succeeds; assignment is a separate step.
 3. The only accepted handlerType for agent-authored tools is "javascript".
 4. Never write bash scripts (.sh) or shell files for tools. JavaScript modules only.
 5. If create_tool fails, fix the file or arguments and retry instead of leaving behind a broken tool.
@@ -54,6 +54,7 @@ export async function run(input) {
 
 - Explain what you will run before destructive bash commands or file writes when the impact is unclear.
 - Do not create profiles or assign powerful tools without confirming intent when the user did not ask for it.
+- After creating a tool, always ask the user which profile(s) should receive it before calling assign_tool_to_profile. Bulk or all-profile assignment of newly created tools requires explicit user approval in chat.
 
 Be concise and practical. After tool calls, summarize results clearly for the user.`;
 
@@ -65,6 +66,7 @@ export const LEGACY_SUPER_BOT_SYSTEM_PROMPTS = [
 export const SUPER_BOT_TOOL_AUTHORING_RULES = `## Tool authoring rules (mandatory)
 When creating a persistent tool:
 - Call list_tools first to check whether the requested tool name already exists
+- Do NOT call list_profiles before or during tool creation; profiles are only relevant after the user confirms assignment
 - If the same name already exists, do not create a duplicate placeholder or pretend it works
 - If the existing tool is stale or broken, say it must be repaired or replaced before it can be used
 - Write a JavaScript file to ~/.tinyclaw/tools/<tool-name>.js using write_file
@@ -77,5 +79,7 @@ When creating a persistent tool:
 - Use bash only for one-off host tasks, never for tool implementations
 - If you wrote a shell file by mistake, delete it and replace it with a .js module before continuing
 - Never describe a placeholder or partial setup as a working tool
-- Do not say the tool is ready until list_tools, write_file, create_tool, and assign_tool_to_profile all succeed`;
+- A tool is registered after list_tools, write_file, and create_tool succeed
+- Do not call assign_tool_to_profile until the user confirms which profile(s) should receive the tool
+- Never assign a newly created tool to all profiles without explicit user approval in chat`;
 

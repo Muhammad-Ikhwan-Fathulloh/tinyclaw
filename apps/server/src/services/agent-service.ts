@@ -81,6 +81,7 @@ import { createSuperBotTools } from "../tools/super-bot-tools";
 import type { AutomationRunner } from "./automation-runner";
 import type { TaskRunner } from "./task-runner";
 import { ProfileService } from "./profile-service";
+import { SuperBotSessionState } from "./super-bot-session-state";
 import { resolveToolsFromStorage } from "./tool-resolver";
 import { loadSessionHistory, replaceSessionHistory, wrapPersistedSession } from "./session-persistence";
 
@@ -95,6 +96,7 @@ export class AgentService {
   private userConfig: UserProviderConfig | null;
   private readonly db: DatabaseAdapter;
   private readonly profileService: ProfileService;
+  private readonly superBotSessionState = new SuperBotSessionState();
   private readonly superBotTools: ToolDefinition[];
   private automationTools: ToolDefinition[] = [];
   private automationRunner: AutomationRunner | null = null;
@@ -110,7 +112,7 @@ export class AgentService {
     this.userConfig = userConfig;
     this.db = db;
     this.profileService = new ProfileService(db);
-    this.superBotTools = createSuperBotTools(this.profileService);
+    this.superBotTools = createSuperBotTools(this.profileService, this.superBotSessionState);
     this._providerConfigured = provider !== null;
     this.harness = this.createHarness(provider);
   }
@@ -385,6 +387,7 @@ export class AgentService {
     }
 
     this.sessions.delete(sessionId);
+    this.superBotSessionState.clearSession(sessionId);
     await this.db.deleteSession(sessionId);
     return true;
   }
@@ -826,7 +829,9 @@ export class AgentService {
       },
     });
 
-    return wrapPersistedSession(sessionId, session, this.db);
+    return wrapPersistedSession(sessionId, session, this.db, {
+      onBeginTurn: (id) => this.superBotSessionState.beginTurn(id),
+    });
   }
 
   private async resolveProfileSystemPrompt(

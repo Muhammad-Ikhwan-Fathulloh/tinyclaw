@@ -15,6 +15,24 @@ describe("super bot tool authoring prompt", () => {
     );
   });
 
+  test("requires user confirmation before assigning newly created tools", () => {
+    expect(SUPER_BOT_SYSTEM_PROMPT).toContain(
+      "Do not call list_profiles or assign_tool_to_profile until the user confirms in chat",
+    );
+    expect(SUPER_BOT_SYSTEM_PROMPT).toContain(
+      "Never assign to all profiles unless the user explicitly asks for that",
+    );
+    expect(SUPER_BOT_TOOL_AUTHORING_RULES).toContain(
+      "Do NOT call list_profiles before or during tool creation",
+    );
+    expect(SUPER_BOT_TOOL_AUTHORING_RULES).toContain(
+      "Do not call assign_tool_to_profile until the user confirms which profile(s) should receive the tool",
+    );
+    expect(SUPER_BOT_TOOL_AUTHORING_RULES).toContain(
+      "Never assign a newly created tool to all profiles without explicit user approval in chat",
+    );
+  });
+
   test("runtime tool authoring rules require translating shell examples to javascript", () => {
     expect(SUPER_BOT_TOOL_AUTHORING_RULES).toContain(
       "If the user provides curl/bash example commands, translate them into JavaScript code inside the tool",

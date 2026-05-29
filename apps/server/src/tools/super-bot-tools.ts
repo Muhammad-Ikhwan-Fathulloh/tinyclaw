@@ -1,12 +1,20 @@
-import type { ProfileService } from "./profile-service";
-import { emptyObjectSchema, type ToolDefinition } from "@tinyclaw/core";
+import type { ProfileService } from "../services/profile-service";
+import { emptyObjectSchema, type ToolContext, type ToolDefinition } from "@tinyclaw/core";
 import { validateJavascriptToolModule } from "../services/javascript-tool-loader";
+import {
+  SuperBotSessionState,
+  TOOL_ASSIGNMENT_CONFIRMATION_MESSAGE,
+} from "../services/super-bot-session-state";
 
-export function createSuperBotTools(profileService: ProfileService): ToolDefinition[] {
+export function createSuperBotTools(
+  profileService: ProfileService,
+  sessionState: SuperBotSessionState,
+): ToolDefinition[] {
   return [
     {
       name: "list_profiles",
-      description: "List all bot profiles with their id, name, and tool counts.",
+      description:
+        "List all bot profiles with their id, name, and tool counts. Do not call this before or during tool creation; use only when managing profiles or resolving profile ids after the user confirms tool assignment.",
       parameters: emptyObjectSchema(),
       async run() {
         return profileService.listProfiles();
@@ -70,7 +78,8 @@ export function createSuperBotTools(profileService: ProfileService): ToolDefinit
     },
     {
       name: "assign_tool_to_profile",
-      description: "Assign an existing tool to a profile.",
+      description:
+        "Assign an existing tool to a profile. For tools created in the current conversation, ask the user which profile(s) should receive the tool before calling this.",
       parameters: {
         type: "object",
         properties: {
@@ -80,7 +89,7 @@ export function createSuperBotTools(profileService: ProfileService): ToolDefinit
         required: ["profileId", "toolId"],
         additionalProperties: false,
       },
-      async run(input) {
+      async run(input, context: ToolContext) {
         const profileId = readString(input, "profileId");
         const toolId = readString(input, "toolId");
 
@@ -88,7 +97,13 @@ export function createSuperBotTools(profileService: ProfileService): ToolDefinit
           throw new Error("profileId and toolId are required.");
         }
 
-        return profileService.assignTool(profileId, { toolId });
+        if (!sessionState.canAssignTool(context.sessionId, toolId)) {
+          throw new Error(TOOL_ASSIGNMENT_CONFIRMATION_MESSAGE);
+        }
+
+        const result = await profileService.assignTool(profileId, { toolId });
+        sessionState.markToolAssigned(context.sessionId, toolId);
+        return result;
       },
     },
     {
@@ -102,7 +117,7 @@ export function createSuperBotTools(profileService: ProfileService): ToolDefinit
     {
       name: "create_tool",
       description:
-        'Register a JavaScript tool. First write ~/.tinyclaw/tools/<name>.js with write_file, then call this with handlerType "javascript".',
+        'Register a JavaScript tool. Workflow: list_tools (check name) → write_file (~/.tinyclaw/tools/<name>.js) → create_tool. Do not call list_profiles as part of this workflow.',
       parameters: {
         type: "object",
         properties: {
@@ -122,7 +137,7 @@ export function createSuperBotTools(profileService: ProfileService): ToolDefinit
         required: ["name", "description"],
         additionalProperties: false,
       },
-      async run(input) {
+      async run(input, context: ToolContext) {
         const name = readString(input, "name");
         const description = readString(input, "description");
 
@@ -156,6 +171,8 @@ export function createSuperBotTools(profileService: ProfileService): ToolDefinit
           handlerType,
           handlerConfig,
         });
+
+        sessionState.markToolCreated(context.sessionId, tool.id);
 
         return { tool };
       },

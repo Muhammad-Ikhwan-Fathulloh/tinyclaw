@@ -2,11 +2,16 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import type { CreateToolRequest, ToolSummary } from "@tinyclaw/core";
+import type { CreateToolRequest, ProfileResponse, ToolSummary } from "@tinyclaw/core";
 import type { ProfileService } from "../services/profile-service";
+import {
+  SuperBotSessionState,
+  TOOL_ASSIGNMENT_CONFIRMATION_MESSAGE,
+} from "../services/super-bot-session-state";
 import { createSuperBotTools } from "./super-bot-tools";
 
 const originalToolsDir = process.env.TINYCLAW_TOOLS_DIR;
+const SESSION_ID = "session_test";
 
 describe("super bot create_tool", () => {
   let tempToolsDir = "";
@@ -49,11 +54,14 @@ describe("super bot create_tool", () => {
       },
     });
 
-    const result = await createTool.run({
-      name: "echo",
-      description: "Echo input",
-      handlerConfig: { modulePath: "echo.js" },
-    });
+    const result = await createTool.run(
+      {
+        name: "echo",
+        description: "Echo input",
+        handlerConfig: { modulePath: "echo.js" },
+      },
+      { sessionId: SESSION_ID },
+    );
 
     expect(capturedRequest).toEqual({
       name: "echo",
@@ -121,13 +129,139 @@ describe("super bot create_tool", () => {
   });
 });
 
+describe("super bot assign_tool_to_profile", () => {
+  const sessionState = new SuperBotSessionState();
+
+  test("allows the first assignment for a tool created this turn", async () => {
+    sessionState.beginTurn(SESSION_ID);
+    sessionState.markToolCreated(SESSION_ID, "tool_weather");
+
+    const assignTool = getAssignToolTool(
+      {
+        async assignTool(profileId: string): Promise<ProfileResponse> {
+          return {
+            profile: {
+              id: profileId,
+              name: "Default Bot",
+              model: null,
+              isSuper: false,
+              toolCount: 1,
+              soulActive: false,
+              hasAvatar: false,
+              createdAt: "2026-01-01T00:00:00.000Z",
+              updatedAt: "2026-01-01T00:00:00.000Z",
+              systemPrompt: "You are helpful.",
+              tools: [],
+            },
+          };
+        },
+      },
+      sessionState,
+    );
+
+    await expect(
+      assignTool.run(
+        { profileId: "profile_default", toolId: "tool_weather" },
+        { sessionId: SESSION_ID },
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  test("blocks a second assignment for the same tool in the same turn", async () => {
+    sessionState.beginTurn(SESSION_ID);
+    sessionState.markToolCreated(SESSION_ID, "tool_weather");
+    sessionState.markToolAssigned(SESSION_ID, "tool_weather");
+
+    const assignTool = getAssignToolTool(
+      {
+        async assignTool(): Promise<ProfileResponse> {
+          throw new Error("should not be called");
+        },
+      },
+      sessionState,
+    );
+
+    const error = await captureError(
+      assignTool.run(
+        { profileId: "profile_other", toolId: "tool_weather" },
+        { sessionId: SESSION_ID },
+      ),
+    );
+
+    expect(error?.message).toBe(TOOL_ASSIGNMENT_CONFIRMATION_MESSAGE);
+  });
+
+  test("allows another assignment after beginTurn reset", async () => {
+    sessionState.beginTurn(SESSION_ID);
+    sessionState.markToolCreated(SESSION_ID, "tool_weather");
+    sessionState.markToolAssigned(SESSION_ID, "tool_weather");
+
+    sessionState.beginTurn(SESSION_ID);
+
+    let assignCalls = 0;
+
+    const assignTool = getAssignToolTool(
+      {
+        async assignTool(profileId: string): Promise<ProfileResponse> {
+          assignCalls += 1;
+
+          return {
+            profile: {
+              id: profileId,
+              name: "Other Bot",
+              model: null,
+              isSuper: false,
+              toolCount: 1,
+              soulActive: false,
+              hasAvatar: false,
+              createdAt: "2026-01-01T00:00:00.000Z",
+              updatedAt: "2026-01-01T00:00:00.000Z",
+              systemPrompt: "You are helpful.",
+              tools: [],
+            },
+          };
+        },
+      },
+      sessionState,
+    );
+
+    await assignTool.run(
+      { profileId: "profile_other", toolId: "tool_weather" },
+      { sessionId: SESSION_ID },
+    );
+
+    expect(assignCalls).toBe(1);
+  });
+});
+
+function createTestTools(profileService: Pick<ProfileService, "createTool" | "assignTool">) {
+  const sessionState = new SuperBotSessionState();
+  sessionState.beginTurn(SESSION_ID);
+  return createSuperBotTools(profileService as ProfileService, sessionState);
+}
+
 function getCreateToolTool(profileService: Pick<ProfileService, "createTool">) {
-  const tool = createSuperBotTools(profileService as ProfileService).find(
+  const tool = createTestTools(profileService).find(
     (candidate) => candidate.name === "create_tool",
   );
 
   if (!tool) {
     throw new Error("create_tool was not registered");
+  }
+
+  return tool;
+}
+
+function getAssignToolTool(
+  profileService: Pick<ProfileService, "assignTool">,
+  sessionState: SuperBotSessionState,
+) {
+  const tool = createSuperBotTools(profileService as ProfileService, sessionState).find(
+    (candidate) => candidate.name === "assign_tool_to_profile",
+  );
+
+  if (!tool) {
+    throw new Error("assign_tool_to_profile was not registered");
   }
 
   return tool;
