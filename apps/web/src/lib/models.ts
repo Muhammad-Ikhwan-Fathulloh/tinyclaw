@@ -1,6 +1,11 @@
 import type { ProviderModelOption } from "@tinyclaw/core/contract";
-import type { InferredProvider } from "@/lib/infer-provider";
-import { inferProviderFromApiKey } from "@/lib/infer-provider";
+import {
+  inferProviderFromApiKey,
+  type UserProviderName,
+} from "@tinyclaw/core";
+
+export type InferredProvider = UserProviderName;
+export { inferProviderFromApiKey };
 
 export function filterModelsByProvider(
   models: ProviderModelOption[],

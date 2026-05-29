@@ -1,6 +1,12 @@
 import type { DatabaseAdapter, StoredAutomationRecord } from "@tinyclaw/db";
 import type { AutomationDefinition, StoredAutomation } from "@tinyclaw/core";
-import type { AutomationStore } from "./index";
+
+export interface AutomationStore {
+  list(): Promise<StoredAutomation[]>;
+  get(id: string): Promise<StoredAutomation | null>;
+  save(definition: StoredAutomation): Promise<void>;
+  delete(id: string): Promise<boolean>;
+}
 
 export class DatabaseAutomationStore implements AutomationStore {
   constructor(private readonly db: DatabaseAdapter) {}

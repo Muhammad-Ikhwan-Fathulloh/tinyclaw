@@ -61,12 +61,6 @@ export function createAgentHarness(
 }
 
 export * from "./automation";
-export {
-  isValidCronExpression,
-  resolveScheduleTimezone,
-  validateAutomationInput,
-  validateTimezone,
-} from "./automation/validate";
 export * from "./automation/validate";
 export {
   createAgentChatSession,
@@ -98,4 +92,3 @@ export {
   fallbackTaskPrompt,
   type DraftTaskPromptInput,
 } from "./task-prompt";
-export { normalizeTaskPrompt } from "@tinyclaw/core";

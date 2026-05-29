@@ -42,7 +42,7 @@ import { formatError } from "@/lib/client";
 import {
   inferProviderFromApiKey,
   type InferredProvider,
-} from "@/lib/infer-provider";
+} from "@/lib/models";
 import { useAppNavigation } from "@/hooks/use-app-navigation";
 import {
   apiKeyHint,

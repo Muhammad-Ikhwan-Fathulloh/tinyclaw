@@ -76,10 +76,3 @@ export class SoulService {
     return resolveSoulStack(profileId);
   }
 }
-
-export {
-  composeSoulSystemPrompt,
-  getGlobalSoulDir,
-  getProfileSoulDir,
-  resolveSoulStackForProfile,
-};

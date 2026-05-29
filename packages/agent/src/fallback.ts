@@ -1,5 +1,5 @@
-import { draftAutomation } from "./automation/generator";
 import {
+  createId,
   type AutomationDefinition,
   type AutomationTrigger,
   type ToolDefinition,
@@ -18,6 +18,21 @@ export function createFallbackAutomation(
     ...automation,
     trigger: inferTrigger(request.prompt),
     steps: inferSteps(request.prompt, request.tools),
+  };
+}
+
+function draftAutomation(input: {
+  prompt: string;
+  name?: string;
+}): AutomationDefinition {
+  return {
+    id: createId("automation"),
+    name: input.name ?? "New automation",
+    description: input.prompt,
+    prompt: input.prompt,
+    trigger: { type: "manual" },
+    steps: [],
+    version: 1,
   };
 }
 

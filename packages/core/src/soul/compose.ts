@@ -46,7 +46,3 @@ export function composeSoulSystemPrompt(
 
   return sections.join("\n");
 }
-
-export function hasSoulIdentity(stack: LoadedSoulStack): boolean {
-  return Boolean(stack.files.soul || stack.files.style || stack.files.skill);
-}
