@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   CircleGaugeIcon,
-  GemIcon,
+  BrainIcon,
   KanbanIcon,
   MessageCircleIcon,
   ArchiveIcon,
@@ -109,7 +109,7 @@ export const NAV_ITEM_ICONS: Record<PageId, LucideIcon> = {
   history: ArchiveIcon,
   profiles: UserRoundIcon,
   tools: WrenchIcon,
-  soul: GemIcon,
+  soul: BrainIcon,
   automations: WorkflowIcon,
   tasks: KanbanIcon,
   settings: Settings2Icon,
