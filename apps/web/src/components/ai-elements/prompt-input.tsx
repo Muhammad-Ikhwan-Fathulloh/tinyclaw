@@ -649,45 +649,61 @@ export const PromptInput = ({
   // Wrapper that validates files before calling provider's add
   const addWithProviderValidation = useCallback(
     (fileList: File[] | FileList) => {
-      const incoming = [...fileList];
-      const accepted = incoming.filter((f) => matchesAccept(f));
-      if (incoming.length && accepted.length === 0) {
-        onError?.({
-          code: "accept",
-          message: "No files match the accepted types.",
-        });
-        return;
-      }
-      const withinSize = (f: File) =>
-        maxFileSize ? f.size <= maxFileSize : true;
-      const sized = accepted.filter(withinSize);
-      if (accepted.length > 0 && sized.length === 0) {
-        onError?.({
-          code: "max_file_size",
-          message: "All files exceed the maximum size.",
-        });
-        return;
-      }
+      void (async () => {
+        let incoming = [...fileList];
 
-      const currentCount = files.length;
-      const capacity =
-        typeof maxFiles === "number"
-          ? Math.max(0, maxFiles - currentCount)
-          : undefined;
-      const capped =
-        typeof capacity === "number" ? sized.slice(0, capacity) : sized;
-      if (typeof capacity === "number" && sized.length > capacity) {
-        onError?.({
-          code: "max_files",
-          message: "Too many files. Some were not added.",
-        });
-      }
+        if (prepareFiles) {
+          try {
+            incoming = await prepareFiles(incoming);
+          } catch (error) {
+            onError?.({
+              code: "max_file_size",
+              message:
+                error instanceof Error ? error.message : "Could not process the selected files.",
+            });
+            return;
+          }
+        }
 
-      if (capped.length > 0) {
-        controller?.attachments.add(capped);
-      }
+        const accepted = incoming.filter((f) => matchesAccept(f));
+        if (incoming.length && accepted.length === 0) {
+          onError?.({
+            code: "accept",
+            message: "No files match the accepted types.",
+          });
+          return;
+        }
+        const withinSize = (f: File) =>
+          maxFileSize ? f.size <= maxFileSize : true;
+        const sized = accepted.filter(withinSize);
+        if (accepted.length > 0 && sized.length === 0) {
+          onError?.({
+            code: "max_file_size",
+            message: "All files exceed the maximum size.",
+          });
+          return;
+        }
+
+        const currentCount = files.length;
+        const capacity =
+          typeof maxFiles === "number"
+            ? Math.max(0, maxFiles - currentCount)
+            : undefined;
+        const capped =
+          typeof capacity === "number" ? sized.slice(0, capacity) : sized;
+        if (typeof capacity === "number" && sized.length > capacity) {
+          onError?.({
+            code: "max_files",
+            message: "Too many files. Some were not added.",
+          });
+        }
+
+        if (capped.length > 0) {
+          controller?.attachments.add(capped);
+        }
+      })();
     },
-    [matchesAccept, maxFileSize, maxFiles, onError, files.length, controller]
+    [matchesAccept, maxFileSize, maxFiles, onError, prepareFiles, files.length, controller]
   );
 
   const clearAttachments = useCallback(

@@ -2,6 +2,7 @@ import type { ProfileSummary } from "@tinyclaw/core/contract";
 import type { ChatStatus } from "ai";
 import type { FileUIPart } from "ai";
 import { ArrowUpIcon, FileTextIcon, PlusIcon, WifiOffIcon, XIcon } from "lucide-react";
+import { useState } from "react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   PromptInput,
@@ -30,12 +31,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { MAX_IMAGE_BYTES } from "@tinyclaw/core/message-content";
 import {
   ALL_ATTACHMENT_ACCEPT,
   DOCUMENT_ACCEPT,
   IMAGE_ACCEPT,
   isImageFilePart,
 } from "@/lib/chat-images";
+import { prepareChatUploadFiles } from "@/lib/compress-image";
 import {
   composerIconButtonClass,
   composerShellClass,
@@ -94,15 +97,17 @@ export function ChatComposer(props: ChatComposerProps) {
 
   const isMinimal = props.variant === "minimal";
   const shellClass = isMinimal ? composerShellCompactClass : composerShellClass;
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const displayError = error ?? attachmentError;
 
   return (
     <div className={cn("shrink-0 space-y-2", className)}>
       <p
-        className={`min-h-5 text-sm ${error ? "text-destructive" : "invisible"}`}
-        role={error ? "alert" : undefined}
-        aria-hidden={!error}
+        className={`min-h-5 text-sm ${displayError ? "text-destructive" : "invisible"}`}
+        role={displayError ? "alert" : undefined}
+        aria-hidden={!displayError}
       >
-        {error ?? "\u00a0"}
+        {displayError ?? "\u00a0"}
       </p>
       {!isMinimal && props.showOfflineHint ? (
         <p
@@ -126,8 +131,18 @@ export function ChatComposer(props: ChatComposerProps) {
         accept={isMinimal ? undefined : ALL_ATTACHMENT_ACCEPT}
         multiple={!isMinimal}
         maxFiles={isMinimal ? undefined : 5}
+        maxFileSize={isMinimal ? undefined : MAX_IMAGE_BYTES}
+        prepareFiles={isMinimal ? undefined : prepareChatUploadFiles}
+        onError={
+          isMinimal
+            ? undefined
+            : (attachmentErr) => setAttachmentError(attachmentErr.message)
+        }
         className={shellClass}
-        onSubmit={({ text, files }) => onSubmit(text.trim(), files)}
+        onSubmit={({ text, files }) => {
+          setAttachmentError(null);
+          onSubmit(text.trim(), files);
+        }}
       >
         {!isMinimal ? <ChatAttachmentHeader /> : null}
         <PromptInputBody>
