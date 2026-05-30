@@ -21,9 +21,7 @@ See [README.md](./README.md) for first-run provider setup and CLI usage.
 
 ## Docker
 
-The [Dockerfile](./Dockerfile) builds an image with the server, web dashboard, and CLI. SQLite uses Bun’s built-in driver (`bun:sqlite`); no extra native database packages are required.
-
-The [docker-entrypoint.sh](./docker-entrypoint.sh) accepts `server` (default) or `cli`.
+The [Dockerfile](./Dockerfile) builds a single image that runs the HTTP server, web dashboard, and in-process automation/task workers together. SQLite uses Bun’s built-in driver (`bun:sqlite`); no extra native database packages are required.
 
 ### Build
 
@@ -31,7 +29,9 @@ The [docker-entrypoint.sh](./docker-entrypoint.sh) accepts `server` (default) or
 docker build -t tinyclaw .
 ```
 
-### Run the server
+### Run
+
+One container is enough — no Compose or extra services:
 
 ```bash
 docker run -d --name tinyclaw \
@@ -41,13 +41,9 @@ docker run -d --name tinyclaw \
   tinyclaw
 ```
 
+Open `http://localhost:4310` for the web dashboard and API. The automation scheduler and task worker run inside the same server process (see **Status** in the sidebar).
+
 API keys are optional at container start. Pass `-e OPENAI_API_KEY=sk-...` or `-e ANTHROPIC_API_KEY=sk-...` when you prefer env-based config; otherwise configure from the web dashboard (**Settings**) or the CLI (below).
-
-The server listens on `http://0.0.0.0:4310` inside the container. Map port `4310` to reach the API and web dashboard from the host (`http://localhost:4310`).
-
-### Web dashboard
-
-The built web UI is served from the same port as the API. Open `http://localhost:4310` after starting the container.
 
 On first run with no API key, go to **Settings** in the sidebar to enter your provider API key and model. Config persists on the `tinyclaw-config` volume.
 
@@ -65,7 +61,7 @@ The CLI needs an interactive terminal (`-it`). On first run with no API key conf
 docker run -it --rm \
   -v tinyclaw-data:/app/data \
   -v tinyclaw-config:/root/.tinyclaw \
-  tinyclaw cli
+  tinyclaw bun run apps/cli/src/index.ts
 ```
 
 To use a server that is already running (on the host or in another container), set `TINYCLAW_SERVER_URL`:
@@ -73,32 +69,10 @@ To use a server that is already running (on the host or in another container), s
 ```bash
 docker run -it --rm \
   -e TINYCLAW_SERVER_URL=http://host.docker.internal:4310 \
-  tinyclaw cli
+  tinyclaw bun run apps/cli/src/index.ts
 ```
 
-On Linux without `host.docker.internal`, use the host gateway IP or run both services via Compose (below).
-
-### Docker Compose
-
-[docker-compose.yml](./docker-compose.yml) runs the server in the background and attaches an interactive CLI that connects over the internal network:
-
-```bash
-docker compose run --rm cli
-```
-
-On first run, the CLI prompts for an API key and model. Config is saved to the `tinyclaw-config` volume and reused on later runs.
-
-Start only the server (includes the web dashboard):
-
-```bash
-docker compose up -d server
-```
-
-Open `http://localhost:4310` and use **Settings** to configure the provider, or run the CLI:
-
-```bash
-docker compose run --rm cli
-```
+On Linux without `host.docker.internal`, use the host gateway IP (for example `172.17.0.1`).
 
 Provider credentials can come from three places (highest priority first):
 
