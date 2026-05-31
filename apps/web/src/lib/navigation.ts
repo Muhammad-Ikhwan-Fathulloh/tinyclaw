@@ -4,7 +4,7 @@ import {
   BrainIcon,
   KanbanIcon,
   MessageCircleIcon,
-  ArchiveIcon,
+  ClockIcon,
   Settings2Icon,
   UserRoundIcon,
   WorkflowIcon,
@@ -106,7 +106,7 @@ export const SETTINGS_NAV_ITEM: NavItem = {
 export const NAV_ITEM_ICONS: Record<PageId, LucideIcon> = {
   status: CircleGaugeIcon,
   chat: MessageCircleIcon,
-  history: ArchiveIcon,
+  history: ClockIcon,
   profiles: UserRoundIcon,
   tools: WrenchIcon,
   soul: BrainIcon,
