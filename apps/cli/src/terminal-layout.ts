@@ -60,6 +60,7 @@ export class TerminalLayout {
   private anchored = false;
   private previousInputStartRow: number | null = null;
   private previousInputRowCount = 0;
+  private reconciledOverflow = 0;
   private resizeHandler: (() => void) | null = null;
 
   constructor(private readonly terminalInput: TerminalInput | null = null) {}
@@ -116,7 +117,6 @@ export class TerminalLayout {
       return;
     }
 
-    this.terminalInput?.setMouseTracking(false);
     process.stdout.write("\x1b[r");
     process.stdout.write("\x1b[?25h");
     this.enabled = false;
@@ -149,9 +149,9 @@ export class TerminalLayout {
 
   beginStream(): void {
     this.streaming = false;
+    this.reconciledOverflow = 0;
     this.buffer.setStatus(null);
     this.statusAbsoluteRow = null;
-    this.terminalInput?.setMouseTracking(true);
     this.streamAbsoluteRow = this.pinned ? this.getScrollBottom() : this.getInlineInputStartRow();
     this.streamColumn = 1;
   }
@@ -160,10 +160,12 @@ export class TerminalLayout {
     this.streaming = false;
     this.buffer.setStatus(null);
     this.statusAbsoluteRow = null;
-    this.terminalInput?.setMouseTracking(false);
     this.buffer.finalizeStream();
+    this.reconciledOverflow = 0;
 
-    if (this.streamAbsoluteRow !== null) {
+    if (this.pinned) {
+      this.reconcilePinnedContent();
+    } else if (this.streamAbsoluteRow !== null) {
       this.contentBottomRow = Math.max(this.contentBottomRow, this.streamAbsoluteRow);
     }
 
@@ -274,12 +276,11 @@ export class TerminalLayout {
 
     if (this.pinned) {
       if (!this.streaming) {
-        this.moveToScrollAppend();
         this.streaming = true;
       }
 
       this.buffer.appendStream(text, getTerminalColumns());
-      process.stdout.write(text);
+      this.reconcilePinnedContent();
       return;
     }
 
@@ -340,12 +341,11 @@ export class TerminalLayout {
 
     if (this.pinned) {
       if (!this.streaming) {
-        this.moveToScrollAppend();
         this.streaming = true;
       }
 
-      process.stdout.write(text);
       this.buffer.appendStream(text, getTerminalColumns());
+      this.reconcilePinnedContent();
       return;
     }
 
@@ -412,6 +412,7 @@ export class TerminalLayout {
     this.pinned = nextPinned;
     this.previousInputStartRow = null;
     this.previousInputRowCount = 0;
+    this.reconciledOverflow = 0;
 
     if (this.pinned) {
       this.updateScrollRegion();
@@ -578,8 +579,53 @@ export class TerminalLayout {
     }
   }
 
-  private moveToScrollAppend(): void {
-    process.stdout.write(`\x1b[${this.getScrollBottom()};1H`);
+  private reconcilePinnedContent(): void {
+    if (!this.pinned || !this.anchored) {
+      return;
+    }
+
+    const rows = getTerminalRows();
+    const startRow = getPinnedInputStartLine(this.reservedRows, rows);
+    const scrollBottom = this.getScrollBottom();
+    const maxContentRows = Math.max(1, this.getPinnedContentBottomLimit(startRow));
+    const allLines = this.buffer.getVisibleContentLines();
+    const overflow = Math.max(0, allLines.length - maxContentRows);
+    const newScroll = overflow - this.reconciledOverflow;
+
+    this.updateScrollRegion();
+
+    if (newScroll > 0) {
+      this.scrollContentUp(scrollBottom, newScroll);
+      this.updateScrollRegion();
+    }
+
+    this.reconciledOverflow = overflow;
+
+    const visibleLines = allLines.slice(-maxContentRows);
+
+    for (let row = 1; row <= scrollBottom; row += 1) {
+      process.stdout.write(`\x1b[${row};1H\x1b[K`);
+    }
+
+    for (let index = 0; index < visibleLines.length; index += 1) {
+      process.stdout.write(`\x1b[${index + 1};1H${visibleLines[index] ?? ""}`);
+    }
+
+    this.contentBottomRow = visibleLines.length;
+
+    const status = this.buffer.getStatusLine();
+
+    if (status !== null) {
+      this.statusAbsoluteRow = scrollBottom;
+      process.stdout.write(`\x1b[${scrollBottom};1H\x1b[K${status}`);
+    } else {
+      this.statusAbsoluteRow = null;
+    }
+
+    if (this.streaming) {
+      this.streamAbsoluteRow = scrollBottom;
+      this.streamColumn = (visibleLines[visibleLines.length - 1] ?? "").length + 1;
+    }
   }
 
   private updateScrollRegion(): void {

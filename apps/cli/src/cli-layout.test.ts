@@ -232,8 +232,7 @@ describe("TerminalLayout rendering", () => {
     );
   });
 
-  test("captures mouse wheel scrolling only while streaming", () => {
-    captureStdout();
+  test("does not enable mouse tracking during stream", () => {
     const terminalInput = new TerminalInput();
     const setMouseTrackingSpy = spyOn(terminalInput, "setMouseTracking").mockImplementation(() => {});
     const layout = new TerminalLayout(terminalInput);
@@ -248,9 +247,31 @@ describe("TerminalLayout rendering", () => {
     layout.beginStream();
     layout.endStream();
 
-    expect(setMouseTrackingSpy).toHaveBeenNthCalledWith(1, true);
-    expect(setMouseTrackingSpy).toHaveBeenNthCalledWith(2, false);
+    expect(setMouseTrackingSpy).not.toHaveBeenCalled();
     setMouseTrackingSpy.mockRestore();
+  });
+
+  test("repaints pinned stream output from the screen buffer", () => {
+    captureStdout();
+    const layout = createAnchoredLayout(22);
+
+    Object.assign(layout as Record<string, unknown>, {
+      pinned: true,
+      reservedRows: 1,
+    });
+    layout.setReservedRows(1, ["> "]);
+    writes = [];
+
+    layout.beginStream();
+    layout.writeScroll("Hel");
+    layout.writeScroll("lo");
+
+    const output = writes.join("");
+    expect(output).toContain("\x1b[1;23r");
+    expect(output).toContain("\x1b[1;1H\x1b[K");
+    expect(output).toContain("\x1b[1;1HHel");
+    expect(output).toContain("\x1b[1;1HHello");
+    expect((layout as Record<string, unknown>).contentBottomRow).toBe(1);
   });
 
   test("clears the separator row before painting the next prompt", () => {
