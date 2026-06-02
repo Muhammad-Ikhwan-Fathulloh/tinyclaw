@@ -395,82 +395,26 @@ export function AutomationsPage() {
                       <p className="type-body mt-1 text-xs">{selectedSubtitle}</p>
                     </div>
 
-                    <div className="hidden shrink-0 items-center gap-1 lg:flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={busy || runningId !== null}
-                        aria-label="Run now"
-                        onClick={() => void handleRun(selected.id)}
-                      >
-                        {runningId === selected.id ? (
-                          <Spinner className="size-3.5" />
-                        ) : (
-                          <PlayIcon className="size-3.5" aria-hidden />
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={busy}
-                        aria-label="Edit"
-                        onClick={() => openEdit(selected)}
-                      >
-                        <PencilIcon className="size-3.5" aria-hidden />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={busy}
-                        aria-label="Delete"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(selected)}
-                      >
-                        <Trash2Icon className="size-3.5" aria-hidden />
-                      </Button>
-                    </div>
+                    <AutomationDetailActions
+                      automation={selected}
+                      busy={busy}
+                      runningId={runningId}
+                      onRun={handleRun}
+                      onEdit={openEdit}
+                      onDelete={setDeleteTarget}
+                      className="hidden lg:flex"
+                    />
                   </div>
 
-                  <div className="mb-5 flex shrink-0 items-center gap-1 lg:hidden">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      disabled={busy || runningId !== null}
-                      aria-label="Run now"
-                      onClick={() => void handleRun(selected.id)}
-                    >
-                      {runningId === selected.id ? (
-                        <Spinner className="size-3.5" />
-                      ) : (
-                        <PlayIcon className="size-3.5" aria-hidden />
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      disabled={busy}
-                      aria-label="Edit"
-                      onClick={() => openEdit(selected)}
-                    >
-                      <PencilIcon className="size-3.5" aria-hidden />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      disabled={busy}
-                      aria-label="Delete"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteTarget(selected)}
-                    >
-                      <Trash2Icon className="size-3.5" aria-hidden />
-                    </Button>
-                  </div>
+                  <AutomationDetailActions
+                    automation={selected}
+                    busy={busy}
+                    runningId={runningId}
+                    onRun={handleRun}
+                    onEdit={openEdit}
+                    onDelete={setDeleteTarget}
+                    className="mb-5 lg:hidden"
+                  />
 
                   <div className="flex min-h-0 flex-1 flex-col border-t border-border pt-5">
                     <div className="mb-4 flex h-10 shrink-0 items-center justify-between gap-3">
@@ -608,6 +552,64 @@ export function AutomationsPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function AutomationDetailActions({
+  automation,
+  busy,
+  runningId,
+  onRun,
+  onEdit,
+  onDelete,
+  className,
+}: {
+  automation: StoredAutomation;
+  busy: boolean;
+  runningId: string | null;
+  onRun: (automationId: string) => void | Promise<void>;
+  onEdit: (automation: StoredAutomation) => void;
+  onDelete: (automation: StoredAutomation) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex shrink-0 items-center gap-1", className)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        disabled={busy || runningId !== null}
+        aria-label="Run now"
+        onClick={() => void onRun(automation.id)}
+      >
+        {runningId === automation.id ? (
+          <Spinner className="size-3.5" />
+        ) : (
+          <PlayIcon className="size-3.5" aria-hidden />
+        )}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        disabled={busy}
+        aria-label="Edit"
+        onClick={() => onEdit(automation)}
+      >
+        <PencilIcon className="size-3.5" aria-hidden />
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        disabled={busy}
+        aria-label="Delete"
+        className="text-destructive hover:text-destructive"
+        onClick={() => onDelete(automation)}
+      >
+        <Trash2Icon className="size-3.5" aria-hidden />
+      </Button>
+    </div>
   );
 }
 

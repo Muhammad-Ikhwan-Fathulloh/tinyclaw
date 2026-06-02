@@ -2,6 +2,7 @@ import type { ImageAttachment } from "@tinyclaw/core";
 import type { PromptSuggestion } from "./commands";
 import { isClipboardImagePasteSupported, readClipboardImage } from "./clipboard-image";
 import { normalizePastedText } from "./prompt-display";
+import type { PromptLineResult } from "./prompt";
 import type { ComposerRenderer } from "./terminal-renderer";
 import type { TerminalInput } from "./terminal-input";
 
@@ -10,11 +11,6 @@ const BRACKETED_PASTE_END = "\x1b[201~";
 
 const BLINK_INTERVAL_MS = 530;
 const MAX_VISIBLE_SUGGESTIONS = 8;
-
-export interface PromptLineResult {
-  text: string;
-  images?: ImageAttachment[];
-}
 
 export interface PersistentPromptOptions {
   prefix?: string;

@@ -19,8 +19,8 @@ import {
   resolveStartupProfile,
   type CliProfileOptions,
 } from "./profile";
-import { PromptCancelledError, promptLine } from "./prompt";
-import { PersistentPrompt, type PromptLineResult } from "./persistent-prompt";
+import { PersistentPrompt } from "./persistent-prompt";
+import { PromptCancelledError, promptLine, type PromptLineResult } from "./prompt";
 import { MessageQueue, type PendingMessage } from "./message-queue";
 import { sendStreamCancellable } from "./stream-abort";
 import { ThinkingIndicator } from "./thinking-indicator";
