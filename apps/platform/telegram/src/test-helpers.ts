@@ -11,7 +11,7 @@ export interface MockMessageContext {
   replies: string[];
 }
 
-export function createMessageContext(options: {
+function createMessageContext(options: {
   userId?: number;
   chatId?: number;
   text?: string;
@@ -38,7 +38,7 @@ export interface MockStreamControl {
   readonly signal: AbortSignal | undefined;
 }
 
-export function createMockClient(options: { streaming?: boolean } = {}) {
+function createMockClient(options: { streaming?: boolean } = {}) {
   const calls = {
     createSession: 0,
     sendStream: 0,
@@ -113,7 +113,7 @@ export function createMockClient(options: { streaming?: boolean } = {}) {
   };
 }
 
-export async function writeTelegramConfigIni(
+async function writeTelegramConfigIni(
   homeDir: string,
   config: {
     botToken: string;
@@ -148,7 +148,7 @@ export async function writeTelegramConfigIni(
   await writeFile(path.join(dir, "config.ini"), lines.join("\n"), "utf8");
 }
 
-export async function withTempHome<T>(
+async function withTempHome<T>(
   run: (homeDir: string) => Promise<T>,
 ): Promise<T> {
   const homeDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-telegram-home-"));

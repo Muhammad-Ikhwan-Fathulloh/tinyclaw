@@ -69,7 +69,6 @@ import {
 } from "@tinyclaw/core";
 import {
   DEFAULT_PROFILE_ID,
-  SUPER_BOT_PROFILE_ID,
   SUPER_BOT_TOOL_AUTHORING_RULES,
   type DatabaseAdapter,
   type StoredProfileRecord,
@@ -976,4 +975,4 @@ function parseAgentChannel(value: string): AgentChannel | null {
   return null;
 }
 
-export { SUPER_BOT_PROFILE_ID, DEFAULT_PROFILE_ID };
+

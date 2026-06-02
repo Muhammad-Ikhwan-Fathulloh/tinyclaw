@@ -18,7 +18,7 @@ export interface CreateProviderOptions {
   model?: string;
 }
 
-export function createProvider(options: CreateProviderOptions): ProviderClient {
+function createProvider(options: CreateProviderOptions): ProviderClient {
   const model = resolveModel(options.provider, options.model);
 
   switch (options.provider) {
@@ -53,7 +53,7 @@ function readApiKeyForProvider(
   return readEnvValue(env, apiKeyEnvVarForProvider(provider)) ?? userConfig?.apiKey;
 }
 
-export function createProviderFromEnv(
+function createProviderFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): ProviderClient | null {
   return createProviderFromSources(env);

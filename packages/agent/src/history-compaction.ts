@@ -9,12 +9,12 @@ import {
   stripImagesForCompaction,
 } from "@tinyclaw/core";
 
-export const COMPACTION_BUFFER = 20_000;
-export const PRUNE_MINIMUM = 20_000;
-export const PRUNE_PROTECT = 40_000;
-export const TAIL_TURNS = 2;
-export const TOKEN_ESTIMATE_RATIO = 4;
-export const PRUNE_TRUNCATION = "[output truncated by compaction]";
+const COMPACTION_BUFFER = 20_000;
+const PRUNE_MINIMUM = 20_000;
+const PRUNE_PROTECT = 40_000;
+const TAIL_TURNS = 2;
+const TOKEN_ESTIMATE_RATIO = 4;
+const PRUNE_TRUNCATION = "[output truncated by compaction]";
 
 const COMPACTION_SYSTEM =
   "You summarize conversation history for context continuity. Follow the user instructions exactly.";
@@ -70,7 +70,7 @@ export interface CompactHistoryInput {
   force?: boolean;
 }
 
-export function estimateTokens(text: string): number {
+function estimateTokens(text: string): number {
   return Math.ceil(text.length / TOKEN_ESTIMATE_RATIO);
 }
 
@@ -128,7 +128,7 @@ export function estimateHistoryTokens(
   );
 }
 
-export function reservedTokens(maxOutputTokens: number): number {
+function reservedTokens(maxOutputTokens: number): number {
   return Math.min(COMPACTION_BUFFER, maxOutputTokens);
 }
 

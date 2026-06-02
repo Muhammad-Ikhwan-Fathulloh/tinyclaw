@@ -51,10 +51,10 @@ export class SessionStore {
   }
 }
 
-export function getTelegramConfigDir(): string {
+function getTelegramConfigDir(): string {
   return join(homedir(), ".tinyclaw", "telegram");
 }
 
-export function getChatSessionsPath(): string {
+function getChatSessionsPath(): string {
   return join(getTelegramConfigDir(), "chat-sessions.json");
 }

@@ -36,7 +36,7 @@ export function parseAutomationResponse(
   };
 }
 
-export function extractJsonObject(raw: string): unknown {
+function extractJsonObject(raw: string): unknown {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
 
@@ -126,7 +126,7 @@ function parseSteps(
   return steps;
 }
 
-export function deriveName(text: string): string {
+function deriveName(text: string): string {
   const line = text.split(/\r?\n/)[0]?.trim() ?? "";
 
   if (!line) {
