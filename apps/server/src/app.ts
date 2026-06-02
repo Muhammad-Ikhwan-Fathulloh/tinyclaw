@@ -148,7 +148,11 @@ export function createApp(options: ServerOptions) {
 
         if (request.method === "PUT" && url.pathname === "/v1/settings/provider") {
           const body = await readJson<ConfigureProviderRequest>(request);
-          const result = await agent.configureProvider(body.apiKey, body.model);
+          const result = await agent.configureProvider(
+            body.apiKey,
+            body.model,
+            body.provider,
+          );
 
           return json<ConfigureProviderResponse>(result);
         }

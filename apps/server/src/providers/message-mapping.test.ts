@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ChatMessage } from "@tinyclaw/core";
-import { toAnthropicMessages } from "./anthropic-web-search";
-import { toOpenAIMessages } from "./openai";
-import { toResponsesInput } from "./openai-responses";
+import { toAnthropicMessages } from "./anthropic";
+import { toOpenAIMessages, toResponsesInput } from "./openai";
 
 const tinyPngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";

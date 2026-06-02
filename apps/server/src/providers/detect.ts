@@ -10,6 +10,10 @@ export function detectProvider(
   env: Record<string, string | undefined> = process.env,
   userConfig?: UserProviderConfig | null,
 ): ProviderName | null {
+  if (readEnvValue(env, "OPENROUTER_API_KEY")) {
+    return "openrouter";
+  }
+
   if (readEnvValue(env, "OPENAI_API_KEY")) {
     return "openai";
   }

@@ -7,6 +7,12 @@ import {
 export type InferredProvider = UserProviderName;
 export { inferProviderFromApiKey };
 
+const OPENROUTER_MODEL_SLUG_PATTERN = /^[\w.-]+\/[\w.:-]+$/;
+
+export function isOpenRouterModelSlug(model: string): boolean {
+  return OPENROUTER_MODEL_SLUG_PATTERN.test(model.trim());
+}
+
 export function filterModelsByProvider(
   models: ProviderModelOption[],
   provider: InferredProvider | null | undefined,
@@ -39,22 +45,41 @@ export function formatProviderLabel(provider: string | null | undefined): string
     return "Anthropic";
   }
 
+  if (provider === "openrouter") {
+    return "OpenRouter";
+  }
+
   return provider ?? "Provider";
 }
 
 export const PROVIDER_OPTIONS: Array<{ id: InferredProvider; label: string }> = [
   { id: "openai", label: "OpenAI" },
   { id: "anthropic", label: "Anthropic" },
+  { id: "openrouter", label: "OpenRouter" },
 ];
 
 export function apiKeyPlaceholder(provider: InferredProvider): string {
-  return provider === "anthropic" ? "sk-ant-…" : "sk-…";
+  if (provider === "anthropic") {
+    return "sk-ant-…";
+  }
+
+  if (provider === "openrouter") {
+    return "sk-or-v1-…";
+  }
+
+  return "sk-…";
 }
 
 export function apiKeyHint(provider: InferredProvider): string {
-  return provider === "anthropic"
-    ? "Anthropic API keys start with sk-ant-"
-    : "OpenAI API keys start with sk-";
+  if (provider === "anthropic") {
+    return "Anthropic API keys start with sk-ant-";
+  }
+
+  if (provider === "openrouter") {
+    return "OpenRouter API keys start with sk-or-";
+  }
+
+  return "OpenAI API keys start with sk-";
 }
 
 export function getModelDisplayName(
@@ -85,4 +110,32 @@ export function validateApiKeyForProvider(
   }
 
   return null;
+}
+
+export function validateCustomOpenRouterModel(model: string): string | null {
+  const trimmed = model.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (!isOpenRouterModelSlug(trimmed)) {
+    return "Use vendor/model format, e.g. anthropic/claude-sonnet-4-6";
+  }
+
+  return null;
+}
+
+export function resolveModelForProvider(
+  provider: InferredProvider,
+  catalogModel: string,
+  customModel?: string,
+): string {
+  const custom = customModel?.trim();
+
+  if (provider === "openrouter" && custom) {
+    return custom;
+  }
+
+  return catalogModel;
 }

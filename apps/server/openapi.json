@@ -3008,7 +3008,8 @@
             "type": "string",
             "enum": [
               "openai",
-              "anthropic"
+              "anthropic",
+              "openrouter"
             ]
           },
           "default": {
@@ -3033,6 +3034,7 @@
             "enum": [
               "openai",
               "anthropic",
+              "openrouter",
               null
             ]
           },
@@ -3078,7 +3080,8 @@
             "type": "string",
             "enum": [
               "openai",
-              "anthropic"
+              "anthropic",
+              "openrouter"
             ]
           },
           "currentModel": {
@@ -3097,6 +3100,14 @@
           },
           "model": {
             "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter"
+            ]
           }
         }
       },
@@ -3111,7 +3122,8 @@
             "type": "string",
             "enum": [
               "openai",
-              "anthropic"
+              "anthropic",
+              "openrouter"
             ]
           },
           "currentModel": {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseAnthropicContent } from "./anthropic-web-search";
+import { parseAnthropicContent } from "./index";
 
 describe("parseAnthropicContent", () => {
   test("keeps thinking out of assistant content", () => {

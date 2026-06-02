@@ -80,7 +80,9 @@ export async function loadUserConfig(): Promise<UserProviderConfig | null> {
   const model = values.model?.trim();
   const configuredProvider = values.provider?.toLowerCase();
   const provider =
-    configuredProvider === "openai" || configuredProvider === "anthropic"
+    configuredProvider === "openai" ||
+    configuredProvider === "anthropic" ||
+    configuredProvider === "openrouter"
       ? configuredProvider
       : inferProviderFromApiKey(apiKey);
   const timezone = readTimezone(values);

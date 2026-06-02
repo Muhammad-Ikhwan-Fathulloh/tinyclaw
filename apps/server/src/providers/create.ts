@@ -3,6 +3,7 @@ import { detectProvider } from "./detect";
 import { readEnvValue, type ProviderClient, type ProviderName } from "@tinyclaw/core";
 import { resolveModel } from "./models";
 import { createOpenAIProvider } from "./openai";
+import { createOpenRouterProvider } from "./openrouter";
 import type { UserProviderConfig } from "@tinyclaw/core";
 
 export interface CreateProviderOptions {
@@ -25,7 +26,27 @@ export function createProvider(options: CreateProviderOptions): ProviderClient {
         apiKey: options.apiKey,
         model,
       });
+    case "openrouter":
+      return createOpenRouterProvider({
+        apiKey: options.apiKey,
+        model,
+      });
   }
+}
+
+function readApiKeyForProvider(
+  provider: ProviderName,
+  env: Record<string, string | undefined>,
+  userConfig?: UserProviderConfig | null,
+): string | undefined {
+  const envKey =
+    provider === "openai"
+      ? "OPENAI_API_KEY"
+      : provider === "anthropic"
+        ? "ANTHROPIC_API_KEY"
+        : "OPENROUTER_API_KEY";
+
+  return readEnvValue(env, envKey) ?? userConfig?.apiKey;
 }
 
 export function createProviderFromEnv(
@@ -44,10 +65,7 @@ export function createProviderFromSources(
     return null;
   }
 
-  const apiKey =
-    provider === "openai"
-      ? readEnvValue(env, "OPENAI_API_KEY") ?? userConfig?.apiKey
-      : readEnvValue(env, "ANTHROPIC_API_KEY") ?? userConfig?.apiKey;
+  const apiKey = readApiKeyForProvider(provider, env, userConfig);
 
   if (!apiKey?.trim()) {
     return null;

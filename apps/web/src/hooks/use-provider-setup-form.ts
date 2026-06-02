@@ -10,7 +10,9 @@ import {
   getModelDisplayName,
   inferProviderFromApiKey,
   type InferredProvider,
+  resolveModelForProvider,
   validateApiKeyForProvider,
+  validateCustomOpenRouterModel,
 } from "@/lib/models";
 
 interface UseProviderSetupFormOptions {
@@ -28,6 +30,8 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
   const [apiKeyTouched, setApiKeyTouched] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("");
+  const [customModel, setCustomModel] = useState("");
+  const [customModelError, setCustomModelError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -99,12 +103,22 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     (provider: InferredProvider) => {
       setSelectedProvider(provider);
 
+      if (provider !== "openrouter") {
+        setCustomModel("");
+        setCustomModelError(null);
+      }
+
       if (apiKeyTouched && apiKey.trim()) {
         setApiKeyError(validateApiKeyForProvider(apiKey, provider));
       }
     },
     [apiKey, apiKeyTouched],
   );
+
+  const handleCustomModelChange = useCallback((value: string) => {
+    setCustomModel(value);
+    setCustomModelError(validateCustomOpenRouterModel(value));
+  }, []);
 
   const { onSuccess } = options;
 
@@ -114,23 +128,44 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
 
       const trimmedKey = apiKey.trim();
       const nextApiKeyError = validateApiKeyForProvider(trimmedKey, selectedProvider);
+      const nextCustomModelError =
+        selectedProvider === "openrouter"
+          ? validateCustomOpenRouterModel(customModel)
+          : null;
 
       setApiKeyTouched(true);
       setApiKeyError(nextApiKeyError);
+      setCustomModelError(nextCustomModelError);
 
       if (nextApiKeyError) {
         document.getElementById("api-key")?.focus();
         return;
       }
 
+      if (nextCustomModelError) {
+        document.getElementById("custom-model")?.focus();
+        return;
+      }
+
+      const modelToSave = resolveModelForProvider(
+        selectedProvider,
+        selectedModel,
+        customModel,
+      );
+
       setBusy(true);
       setFormError(null);
 
       try {
-        const result = await configureProvider(trimmedKey, selectedModel || undefined);
+        const result = await configureProvider(
+          trimmedKey,
+          modelToSave || undefined,
+          selectedProvider,
+        );
         setApiKey("");
         setApiKeyTouched(false);
         setShowApiKey(false);
+        setCustomModel("");
         onSuccess?.(result);
       } catch (err) {
         setFormError(formatError(err));
@@ -139,7 +174,14 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
         setBusy(false);
       }
     },
-    [apiKey, selectedModel, selectedProvider, configureProvider, onSuccess],
+    [
+      apiKey,
+      customModel,
+      selectedModel,
+      selectedProvider,
+      configureProvider,
+      onSuccess,
+    ],
   );
 
   return {
@@ -149,6 +191,8 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     showApiKey,
     apiKeyError,
     selectedModel,
+    customModel,
+    customModelError,
     busy,
     formError,
     filteredModels,
@@ -157,6 +201,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     handleApiKeyBlur,
     handleApiKeyChange,
     handleProviderSelect,
+    handleCustomModelChange,
     handleSubmit,
     formatSuccessMessage: (result: ConfigureProviderResponse) =>
       `${formatProviderLabel(result.provider)} connected with ${getModelDisplayName(catalog, result.currentModel)}.`,

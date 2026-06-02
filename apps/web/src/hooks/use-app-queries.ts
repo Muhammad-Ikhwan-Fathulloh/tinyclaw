@@ -127,8 +127,15 @@ export function useConfigureProviderMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ apiKey, model }: { apiKey: string; model?: string }) =>
-      client.configureProvider({ apiKey, model }),
+    mutationFn: ({
+      apiKey,
+      model,
+      provider,
+    }: {
+      apiKey: string;
+      model?: string;
+      provider?: "openai" | "anthropic" | "openrouter";
+    }) => client.configureProvider({ apiKey, model, provider }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.health }),

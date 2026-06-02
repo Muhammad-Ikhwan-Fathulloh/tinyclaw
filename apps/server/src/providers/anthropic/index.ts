@@ -4,7 +4,7 @@ import type {
   ProviderClient,
   StreamChatHandlers,
 } from "@tinyclaw/core";
-import { continueAnthropicUntilDone } from "./anthropic-web-search";
+import { continueAnthropicUntilDone } from "./web-search";
 
 export interface AnthropicProviderOptions {
   apiKey: string;
@@ -104,3 +104,5 @@ async function requestMessage(options: {
 
   return content;
 }
+
+export * from "./web-search";

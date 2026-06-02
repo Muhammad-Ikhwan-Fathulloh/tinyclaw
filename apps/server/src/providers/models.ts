@@ -7,6 +7,8 @@ export interface ProviderModelOption {
   contextWindow: number;
   maxOutputTokens: number;
   default?: boolean;
+  /** OpenRouter only: whether extended thinking (`reasoning`) is sent for this model. */
+  supportsThinking?: boolean;
 }
 
 export const AVAILABLE_MODELS: ProviderModelOption[] = [
@@ -47,7 +49,54 @@ export const AVAILABLE_MODELS: ProviderModelOption[] = [
     contextWindow: 128_000,
     maxOutputTokens: 8_192,
   },
+  {
+    id: "anthropic/claude-sonnet-4-6",
+    name: "Claude Sonnet 4.6",
+    provider: "openrouter",
+    contextWindow: 200_000,
+    maxOutputTokens: 8_192,
+    default: true,
+    supportsThinking: true,
+  },
+  {
+    id: "anthropic/claude-opus-4-6",
+    name: "Claude Opus 4.6",
+    provider: "openrouter",
+    contextWindow: 200_000,
+    maxOutputTokens: 8_192,
+    supportsThinking: true,
+  },
+  {
+    id: "openai/gpt-5.4",
+    name: "GPT-5.4",
+    provider: "openrouter",
+    contextWindow: 128_000,
+    maxOutputTokens: 8_192,
+    supportsThinking: true,
+  },
+  {
+    id: "google/gemini-2.5-pro-preview",
+    name: "Gemini 2.5 Pro",
+    provider: "openrouter",
+    contextWindow: 1_000_000,
+    maxOutputTokens: 8_192,
+    supportsThinking: true,
+  },
+  {
+    id: "meta-llama/llama-4-maverick",
+    name: "Llama 4 Maverick",
+    provider: "openrouter",
+    contextWindow: 128_000,
+    maxOutputTokens: 8_192,
+    supportsThinking: false,
+  },
 ];
+
+const OPENROUTER_MODEL_SLUG_PATTERN = /^[\w.-]+\/[\w.:-]+$/;
+
+export function isOpenRouterModelSlug(model: string): boolean {
+  return OPENROUTER_MODEL_SLUG_PATTERN.test(model.trim());
+}
 
 export function getAvailableModels(): ProviderModelOption[] {
   return AVAILABLE_MODELS;
@@ -65,7 +114,13 @@ export function getModelsForProvider(
 
 export function getDefaultModel(provider: ProviderName): string {
   const models = getModelsForProvider(provider);
-  return models.find((model) => model.default)?.id ?? models[0]?.id ?? "gpt-5.4";
+  const fallback =
+    provider === "openrouter"
+      ? "anthropic/claude-sonnet-4-6"
+      : provider === "anthropic"
+        ? "claude-sonnet-4-6"
+        : "gpt-5.4";
+  return models.find((model) => model.default)?.id ?? models[0]?.id ?? fallback;
 }
 
 export function isValidModel(model: string): boolean {
@@ -76,11 +131,17 @@ export function resolveModel(
   provider: ProviderName,
   model?: string,
 ): string {
-  if (model && isValidModel(model)) {
-    const option = getModelById(model);
+  const trimmed = model?.trim();
+
+  if (trimmed && provider === "openrouter" && isOpenRouterModelSlug(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed && isValidModel(trimmed)) {
+    const option = getModelById(trimmed);
 
     if (option?.provider === provider) {
-      return model;
+      return trimmed;
     }
   }
 

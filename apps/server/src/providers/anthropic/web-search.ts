@@ -4,10 +4,15 @@ import type {
   GenerateChatInput,
   LlmToolDefinition,
   StreamChatHandlers,
-  ThinkingEffort,
   ToolCall,
 } from "@tinyclaw/core";
 import { toAnthropicUserContent, WEB_SEARCH_TOOL_NAME } from "@tinyclaw/core";
+import {
+  normalizeThinkingEffort,
+  parseJsonRecord,
+  readRecord,
+  readSseEvents,
+} from "../shared";
 
 const MAX_PAUSE_CONTINUATIONS = 5;
 const WEB_SEARCH_MAX_USES = 5;
@@ -162,6 +167,8 @@ export async function continueAnthropicUntilDone(options: {
 }): Promise<ChatCompletionResult> {
   let apiMessages = await toAnthropicMessages(options.messages);
   let combinedContent: AnthropicContentBlock[] = [];
+  const tools = buildAnthropicTools(options.tools, options.webSearch);
+  const thinkingRequest = buildAnthropicThinkingRequest(options.thinking);
 
   for (let attempt = 0; attempt < MAX_PAUSE_CONTINUATIONS; attempt += 1) {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -171,17 +178,16 @@ export async function continueAnthropicUntilDone(options: {
         "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: options.model,
-        max_tokens: 4096,
-        system: options.system,
-        messages: apiMessages,
-        ...(buildAnthropicTools(options.tools, options.webSearch)
-          ? { tools: buildAnthropicTools(options.tools, options.webSearch) }
-          : {}),
-        ...buildAnthropicThinkingRequest(options.thinking),
-        ...(options.stream ? { stream: true } : {}),
-      }),
+      body: JSON.stringify(
+        buildAnthropicRequestBody({
+          model: options.model,
+          system: options.system,
+          messages: apiMessages,
+          tools,
+          thinkingRequest,
+          stream: options.stream,
+        }),
+      ),
     });
 
     if (!response.ok) {
@@ -199,13 +205,14 @@ export async function continueAnthropicUntilDone(options: {
       combinedContent.push(...(streamed.assistantMessage.providerContent ?? []));
 
       if (streamed.stopReason !== "pause_turn") {
-        return finalizeAnthropicResult(streamed.content, streamed.toolCalls, combinedContent);
+        return finalizeAnthropicResult({
+          parsed: parseAnthropicContent(combinedContent),
+          content: streamed.content,
+          toolCalls: streamed.toolCalls,
+        });
       }
 
-      apiMessages = [
-        ...apiMessages,
-        { role: "assistant", content: combinedContent },
-      ];
+      apiMessages = appendAnthropicAssistantMessage(apiMessages, combinedContent);
       continue;
     }
 
@@ -218,20 +225,17 @@ export async function continueAnthropicUntilDone(options: {
     combinedContent.push(...(payload.content ?? []));
 
     if (payload.stop_reason !== "pause_turn") {
-      return finalizeAnthropicResult(
-        parseAnthropicContent(combinedContent).content,
-        parseAnthropicContent(combinedContent).toolCalls,
-        combinedContent,
-      );
+      return finalizeAnthropicResult({
+        parsed: parseAnthropicContent(combinedContent),
+      });
     }
 
-    apiMessages = [
-      ...apiMessages,
-      { role: "assistant", content: combinedContent },
-    ];
+    apiMessages = appendAnthropicAssistantMessage(apiMessages, combinedContent);
   }
 
-  return parseAnthropicContent(combinedContent);
+  return finalizeAnthropicResult({
+    parsed: parseAnthropicContent(combinedContent),
+  });
 }
 
 interface StreamedAnthropicResult extends ChatCompletionResult {
@@ -242,208 +246,102 @@ async function readAnthropicStream(
   body: ReadableStream<Uint8Array>,
   handlers?: StreamChatHandlers,
 ): Promise<StreamedAnthropicResult> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let content = "";
   let stopReason: string | undefined;
   const pending = new Map<number, { id: string; name: string; inputJson: string }>();
   const providerContent: AnthropicContentBlock[] = [];
   const contentBlocks = new Map<number, AnthropicContentBlock>();
 
-  while (true) {
-    const { done, value } = await reader.read();
+  await readSseEvents(body, ({ event, data }) => {
+    const payload = JSON.parse(data) as Record<string, unknown>;
 
-    if (done) {
-      break;
+    if (event === "message_delta" || payload.type === "message_delta") {
+      const delta = payload.delta as { stop_reason?: string } | undefined;
+      stopReason = delta?.stop_reason ?? stopReason;
     }
 
-    buffer += decoder.decode(value, { stream: true });
+    if (event === "content_block_start" || payload.type === "content_block_start") {
+      const index = Number(payload.index ?? 0);
+      const block = payload.content_block as AnthropicContentBlock | undefined;
 
-    while (true) {
-      const boundary = buffer.indexOf("\n\n");
+      if (block) {
+        contentBlocks.set(index, { ...block });
+        providerContent[index] = { ...block };
 
-      if (boundary < 0) {
-        break;
-      }
-
-      const eventBlock = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      let eventName = "message";
-      let eventData = "";
-
-      for (const line of eventBlock.split("\n")) {
-        if (line.startsWith("event: ")) {
-          eventName = line.slice(7).trim();
-          continue;
+        if (block.type === "tool_use") {
+          pending.set(index, {
+            id: String(block.id ?? ""),
+            name: String(block.name ?? ""),
+            inputJson: "",
+          });
         }
 
-        if (line.startsWith("data: ")) {
-          eventData = line.slice(6);
-        }
-      }
-
-      if (!eventData) {
-        continue;
-      }
-
-      const payload = JSON.parse(eventData) as Record<string, unknown>;
-
-      if (eventName === "message_delta" || payload.type === "message_delta") {
-        const delta = payload.delta as { stop_reason?: string } | undefined;
-        stopReason = delta?.stop_reason ?? stopReason;
-      }
-
-      if (
-        eventName === "content_block_start" ||
-        payload.type === "content_block_start"
-      ) {
-        const index = Number(payload.index ?? 0);
-        const block = payload.content_block as AnthropicContentBlock | undefined;
-
-        if (block) {
-          contentBlocks.set(index, { ...block });
-          providerContent[index] = { ...block };
-
-          if (block.type === "tool_use") {
-            pending.set(index, {
-              id: String(block.id ?? ""),
-              name: String(block.name ?? ""),
-              inputJson: "",
-            });
-          }
-
-          if (block.type === "server_tool_use") {
-            handlers?.onToolStart?.({
-              toolCallId: String(block.id ?? ""),
-              tool: String(block.name ?? WEB_SEARCH_TOOL_NAME),
-              input: readRecord(block.input),
-            });
-          }
-        }
-      }
-
-      if (
-        eventName === "content_block_delta" ||
-        payload.type === "content_block_delta"
-      ) {
-        const index = Number(payload.index ?? 0);
-        const delta = payload.delta as Record<string, unknown> | undefined;
-
-        if (delta?.type === "thinking_delta" && typeof delta.thinking === "string") {
-          handlers?.onThinking?.(delta.thinking);
-
-          const block = contentBlocks.get(index) ?? { type: "thinking", thinking: "" };
-          block.thinking = `${String(block.thinking ?? "")}${delta.thinking}`;
-          contentBlocks.set(index, block);
-          providerContent[index] = block;
-        }
-
-        if (delta?.type === "text_delta" && typeof delta.text === "string") {
-          content += delta.text;
-          handlers?.onChunk(delta.text);
-
-          const block = contentBlocks.get(index) ?? { type: "text", text: "" };
-          block.text = `${String(block.text ?? "")}${delta.text}`;
-          contentBlocks.set(index, block);
-          providerContent[index] = block;
-        }
-
-        if (delta?.type === "input_json_delta" && typeof delta.partial_json === "string") {
-          const current = pending.get(index) ?? { id: "", name: "", inputJson: "" };
-          current.inputJson += delta.partial_json;
-          pending.set(index, current);
-        }
-      }
-
-      if (
-        eventName === "content_block_stop" ||
-        payload.type === "content_block_stop"
-      ) {
-        const index = Number(payload.index ?? 0);
-        const block = providerContent[index];
-
-        if (block?.type === "web_search_tool_result") {
-          handlers?.onToolEnd?.({
-            toolCallId: String(block.tool_use_id ?? ""),
-            tool: WEB_SEARCH_TOOL_NAME,
-            result: block.content ?? block,
+        if (block.type === "server_tool_use") {
+          handlers?.onToolStart?.({
+            toolCallId: String(block.id ?? ""),
+            tool: String(block.name ?? WEB_SEARCH_TOOL_NAME),
+            input: readRecord(block.input),
           });
         }
       }
     }
-  }
 
-  const toolCalls = [...pending.entries()]
-    .sort(([left], [right]) => left - right)
-    .map(([, call]) => call)
-    .flatMap((call) => {
-      if (!call.id || !call.name) {
-        return [];
+    if (event === "content_block_delta" || payload.type === "content_block_delta") {
+      const index = Number(payload.index ?? 0);
+      const delta = readRecord(payload.delta);
+
+      if (delta.type === "thinking_delta" && typeof delta.thinking === "string") {
+        handlers?.onThinking?.(delta.thinking);
+
+        const block = contentBlocks.get(index) ?? { type: "thinking", thinking: "" };
+        block.thinking = `${String(block.thinking ?? "")}${delta.thinking}`;
+        contentBlocks.set(index, block);
+        providerContent[index] = block;
       }
 
-      let argumentsValue: Record<string, unknown> = {};
+      if (delta.type === "text_delta" && typeof delta.text === "string") {
+        content += delta.text;
+        handlers?.onChunk(delta.text);
 
-      if (call.inputJson.trim()) {
-        try {
-          const parsed = JSON.parse(call.inputJson) as unknown;
-          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            argumentsValue = parsed as Record<string, unknown>;
-          }
-        } catch {
-          argumentsValue = {};
-        }
+        const block = contentBlocks.get(index) ?? { type: "text", text: "" };
+        block.text = `${String(block.text ?? "")}${delta.text}`;
+        contentBlocks.set(index, block);
+        providerContent[index] = block;
       }
 
-      return [
-        {
-          id: call.id,
-          name: call.name,
-          arguments: argumentsValue,
-        },
-      ];
-    });
+      if (delta.type === "input_json_delta" && typeof delta.partial_json === "string") {
+        const current = pending.get(index) ?? { id: "", name: "", inputJson: "" };
+        current.inputJson += delta.partial_json;
+        pending.set(index, current);
+      }
+    }
+
+    if (event === "content_block_stop" || payload.type === "content_block_stop") {
+      const index = Number(payload.index ?? 0);
+      const block = providerContent[index];
+
+      if (block?.type === "web_search_tool_result") {
+        handlers?.onToolEnd?.({
+          toolCallId: String(block.tool_use_id ?? ""),
+          tool: WEB_SEARCH_TOOL_NAME,
+          result: block.content ?? block,
+        });
+      }
+    }
+  });
+
+  const toolCalls = finalizeAnthropicToolCalls(pending);
 
   const normalizedContent = providerContent.filter(Boolean);
   const parsed = parseAnthropicContent(normalizedContent);
 
   return {
-    ...parsed,
-    content: content.trim() || parsed.content,
-    toolCalls,
+    ...finalizeAnthropicResult({
+      parsed,
+      content,
+      toolCalls,
+    }),
     stopReason,
-    assistantMessage: {
-      ...parsed.assistantMessage,
-      content: content.trim() || parsed.content,
-      ...(toolCalls.length > 0 ? { toolCalls } : {}),
-      ...(normalizedContent.length > 0 ? { providerContent: normalizedContent } : {}),
-    },
-  };
-}
-
-function finalizeAnthropicResult(
-  content: string,
-  toolCalls: ToolCall[],
-  providerContent: AnthropicContentBlock[],
-): ChatCompletionResult {
-  const parsed = parseAnthropicContent(providerContent);
-
-  if (!content.trim() && toolCalls.length === 0 && providerContent.length === 0) {
-    throw new Error("Anthropic returned an empty response.");
-  }
-
-  return {
-    content: content.trim() || parsed.content,
-    toolCalls,
-    assistantMessage: {
-      role: "assistant",
-      content: content.trim() || parsed.content,
-      ...(parsed.assistantMessage.thinking
-        ? { thinking: parsed.assistantMessage.thinking }
-        : {}),
-      ...(toolCalls.length > 0 ? { toolCalls } : {}),
-      ...(providerContent.length > 0 ? { providerContent } : {}),
-    },
   };
 }
 
@@ -454,20 +352,12 @@ function buildAnthropicThinkingRequest(
     return {};
   }
 
-  const effort = mapAnthropicEffort(providerOptions.thinking.effort);
+  const effort = normalizeThinkingEffort(providerOptions.thinking.effort);
 
   return {
     thinking: { type: "adaptive" },
     output_config: { effort },
   };
-}
-
-function mapAnthropicEffort(effort: ThinkingEffort | undefined): ThinkingEffort {
-  if (effort === "low" || effort === "medium" || effort === "high") {
-    return effort;
-  }
-
-  return "medium";
 }
 
 function emitHostedToolEvents(
@@ -505,8 +395,75 @@ function toAnthropicCustomTool(tool: LlmToolDefinition) {
   };
 }
 
-function readRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+function buildAnthropicRequestBody(options: {
+  model: string;
+  system: string;
+  messages: AnthropicMessage[];
+  tools: unknown[] | undefined;
+  thinkingRequest: Record<string, unknown>;
+  stream: boolean;
+}) {
+  return {
+    model: options.model,
+    max_tokens: 4096,
+    system: options.system,
+    messages: options.messages,
+    ...(options.tools ? { tools: options.tools } : {}),
+    ...options.thinkingRequest,
+    ...(options.stream ? { stream: true } : {}),
+  };
+}
+
+function appendAnthropicAssistantMessage(
+  messages: AnthropicMessage[],
+  content: AnthropicContentBlock[],
+): AnthropicMessage[] {
+  return [...messages, { role: "assistant", content }];
+}
+
+function finalizeAnthropicToolCalls(
+  pending: Map<number, { id: string; name: string; inputJson: string }>,
+): ToolCall[] {
+  return [...pending.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, call]) => call)
+    .flatMap((call) => {
+      if (!call.id || !call.name) {
+        return [];
+      }
+
+      return [
+        {
+          id: call.id,
+          name: call.name,
+          arguments: parseJsonRecord(call.inputJson),
+        },
+      ];
+    });
+}
+
+function finalizeAnthropicResult(options: {
+  parsed: ChatCompletionResult;
+  content?: string;
+  toolCalls?: ToolCall[];
+}): ChatCompletionResult {
+  const content = options.content?.trim() || options.parsed.content;
+  const toolCalls = options.toolCalls ?? options.parsed.toolCalls;
+  const providerContent = options.parsed.assistantMessage.providerContent;
+
+  if (!content && toolCalls.length === 0 && !providerContent?.length) {
+    throw new Error("Anthropic returned an empty response.");
+  }
+
+  return {
+    ...options.parsed,
+    content,
+    toolCalls,
+    assistantMessage: {
+      ...options.parsed.assistantMessage,
+      content,
+      ...(toolCalls.length > 0 ? { toolCalls } : {}),
+      ...(providerContent?.length ? { providerContent } : {}),
+    },
+  };
 }

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@countrystatecity/timezones": "^1.0.5",
+    "@openrouter/sdk": "^0.12.79",
     "@tinyclaw/agent": "workspace:*",
     "@tinyclaw/core": "workspace:*",
     "@tinyclaw/db": "workspace:*",

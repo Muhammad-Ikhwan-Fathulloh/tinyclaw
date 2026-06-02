@@ -21,6 +21,16 @@ describe("providerSupportsNativeDocument", () => {
       ),
     ).toBe(true);
   });
+
+  test("openrouter supports the same native documents as openai", () => {
+    expect(providerSupportsNativeDocument("openrouter", "application/pdf")).toBe(true);
+    expect(
+      providerSupportsNativeDocument(
+        "openrouter",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("registerDocumentTextParser", () => {

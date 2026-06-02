@@ -4,7 +4,6 @@ import type {
   GenerateChatInput,
   LlmToolDefinition,
   StreamChatHandlers,
-  ThinkingEffort,
   ToolCall,
 } from "@tinyclaw/core";
 import {
@@ -12,6 +11,12 @@ import {
   toOpenAIResponsesUserContent,
   WEB_SEARCH_TOOL_NAME,
 } from "@tinyclaw/core";
+import {
+  normalizeThinkingEffort,
+  parseJsonRecord,
+  readRecord,
+  readSseEvents,
+} from "../shared";
 
 type ResponseItem = Record<string, unknown>;
 
@@ -76,18 +81,10 @@ function buildOpenAIReasoningRequest(
 
   return {
     reasoning: {
-      effort: mapOpenAIReasoningEffort(input.providerOptions.thinking.effort),
+      effort: normalizeThinkingEffort(input.providerOptions.thinking.effort),
       summary: "auto",
     },
   };
-}
-
-function mapOpenAIReasoningEffort(effort: ThinkingEffort | undefined): ThinkingEffort {
-  if (effort === "low" || effort === "medium" || effort === "high") {
-    return effort;
-  }
-
-  return "medium";
 }
 
 function buildResponsesTools(tools: LlmToolDefinition[] | undefined, webSearch: boolean) {
@@ -107,83 +104,99 @@ export async function toResponsesInput(messages: ChatMessage[]): Promise<unknown
 
   for (const message of messages) {
     if (message.role === "user") {
-      const content = await toOpenAIResponsesUserContent(message.content);
-
-      if (isMessageContentPartArray(message.content)) {
-        input.push({
-          type: "message",
-          role: "user",
-          content,
-        });
-      } else {
-        input.push({
-          role: "user",
-          content,
-        });
-      }
-
+      input.push(await toResponsesUserInput(message));
       continue;
     }
 
     if (message.role === "assistant") {
-      if (message.toolCalls?.length) {
-        if (message.content.trim()) {
-          input.push({
-            type: "message",
-            role: "assistant",
-            content: [{ type: "output_text", text: message.content }],
-          });
-        }
-
-        if (message.providerContent?.length) {
-          for (const item of message.providerContent) {
-            if (
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type !== "function_call"
-            ) {
-              input.push(item);
-            }
-          }
-        }
-
-        for (const call of message.toolCalls) {
-          input.push({
-            type: "function_call",
-            call_id: call.id,
-            name: call.name,
-            arguments: JSON.stringify(call.arguments),
-          });
-        }
-
-        continue;
-      }
-
-      if (message.providerContent?.length) {
-        input.push(...message.providerContent);
-        continue;
-      }
-
-      if (message.content.trim()) {
-        input.push({
-          type: "message",
-          role: "assistant",
-          content: [{ type: "output_text", text: message.content }],
-        });
-      }
-
+      input.push(...toResponsesAssistantInput(message));
       continue;
     }
 
-    input.push({
-      type: "function_call_output",
-      call_id: message.toolCallId,
-      output: message.content,
-    });
+    input.push(toResponsesToolOutput(message));
   }
 
   return input;
+}
+
+async function toResponsesUserInput(
+  message: Extract<ChatMessage, { role: "user" }>,
+): Promise<unknown> {
+  const content = await toOpenAIResponsesUserContent(message.content);
+
+  if (isMessageContentPartArray(message.content)) {
+    return {
+      type: "message",
+      role: "user",
+      content,
+    };
+  }
+
+  return {
+    role: "user",
+    content,
+  };
+}
+
+function toResponsesAssistantInput(
+  message: Extract<ChatMessage, { role: "assistant" }>,
+): unknown[] {
+  const input: unknown[] = [];
+
+  if (message.toolCalls?.length) {
+    if (message.content.trim()) {
+      input.push(toResponsesAssistantTextMessage(message.content));
+    }
+
+    if (message.providerContent?.length) {
+      input.push(...message.providerContent.filter(isNonFunctionCallProviderItem));
+    }
+
+    input.push(
+      ...message.toolCalls.map((call) => ({
+        type: "function_call",
+        call_id: call.id,
+        name: call.name,
+        arguments: JSON.stringify(call.arguments),
+      })),
+    );
+
+    return input;
+  }
+
+  if (message.providerContent?.length) {
+    input.push(...message.providerContent);
+    return input;
+  }
+
+  if (message.content.trim()) {
+    input.push(toResponsesAssistantTextMessage(message.content));
+  }
+
+  return input;
+}
+
+function toResponsesAssistantTextMessage(content: string) {
+  return {
+    type: "message",
+    role: "assistant",
+    content: [{ type: "output_text", text: content }],
+  };
+}
+
+function isNonFunctionCallProviderItem(item: unknown): item is ResponseItem {
+  const record = readRecord(item);
+  return "type" in record && record.type !== "function_call";
+}
+
+function toResponsesToolOutput(
+  message: Extract<ChatMessage, { role: "tool" }>,
+) {
+  return {
+    type: "function_call_output",
+    call_id: message.toolCallId,
+    output: message.content,
+  };
 }
 
 function parseResponsesOutput(
@@ -224,24 +237,14 @@ function parseResponsesOutput(
     }
 
     if (item.type === "web_search_call") {
-      const action = readRecord(item.action);
-      handlers?.onToolStart?.({
-        toolCallId: String(item.id ?? ""),
-        tool: WEB_SEARCH_TOOL_NAME,
-        input: action,
-      });
-      handlers?.onToolEnd?.({
-        toolCallId: String(item.id ?? ""),
-        tool: WEB_SEARCH_TOOL_NAME,
-        result: action,
-      });
+      emitWebSearchToolEvent(item, handlers);
     }
 
     if (item.type === "function_call") {
       toolCalls.push({
         id: String(item.call_id ?? item.id ?? ""),
         name: String(item.name ?? ""),
-        arguments: parseToolArguments(String(item.arguments ?? "{}")),
+        arguments: parseJsonRecord(String(item.arguments ?? "{}")),
       });
     }
   }
@@ -295,98 +298,73 @@ function extractReasoningSummaryText(item: ResponseItem): string | undefined {
   return combined || undefined;
 }
 
+function emitWebSearchToolEvent(
+  item: ResponseItem,
+  handlers?: StreamChatHandlers,
+): void {
+  const action = readRecord(item.action);
+  const toolCallId = String(item.id ?? "");
+
+  handlers?.onToolStart?.({
+    toolCallId,
+    tool: WEB_SEARCH_TOOL_NAME,
+    input: action,
+  });
+  handlers?.onToolEnd?.({
+    toolCallId,
+    tool: WEB_SEARCH_TOOL_NAME,
+    result: action,
+  });
+}
+
 async function readOpenAIResponsesStream(
   body: ReadableStream<Uint8Array>,
   handlers?: StreamChatHandlers,
 ): Promise<ChatCompletionResult> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let content = "";
   let thinking = "";
   const output: ResponseItem[] = [];
   const outputIndex = new Map<string, ResponseItem>();
 
-  while (true) {
-    const { done, value } = await reader.read();
+  await readSseEvents(body, ({ data }) => {
+    const payload = JSON.parse(data) as Record<string, unknown>;
+    const type = String(payload.type ?? "");
 
-    if (done) {
-      break;
+    if (type === "response.output_text.delta") {
+      const delta = String(payload.delta ?? "");
+      content += delta;
+      handlers?.onChunk(delta);
     }
 
-    buffer += decoder.decode(value, { stream: true });
+    if (type === "response.reasoning_summary_text.delta") {
+      const delta = String(payload.delta ?? "");
+      thinking += delta;
+      handlers?.onThinking?.(delta);
+    }
 
-    while (true) {
-      const boundary = buffer.indexOf("\n\n");
+    if (type === "response.output_item.added") {
+      const item = readRecord(payload.item);
+      const itemId = String(item.id ?? "");
 
-      if (boundary < 0) {
-        break;
-      }
-
-      const eventBlock = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-
-      for (const line of eventBlock.split("\n")) {
-        if (!line.startsWith("data: ")) {
-          continue;
-        }
-
-        const data = line.slice(6).trim();
-
-        if (!data || data === "[DONE]") {
-          continue;
-        }
-
-        const payload = JSON.parse(data) as Record<string, unknown>;
-        const type = String(payload.type ?? "");
-
-        if (type === "response.output_text.delta") {
-          const delta = String(payload.delta ?? "");
-          content += delta;
-          handlers?.onChunk(delta);
-        }
-
-        if (type === "response.reasoning_summary_text.delta") {
-          const delta = String(payload.delta ?? "");
-          thinking += delta;
-          handlers?.onThinking?.(delta);
-        }
-
-        if (type === "response.output_item.added") {
-          const item = readRecord(payload.item);
-          const itemId = String(item.id ?? "");
-
-          if (itemId) {
-            outputIndex.set(itemId, item);
-          }
-        }
-
-        if (type === "response.output_item.done") {
-          const item = readRecord(payload.item);
-          const itemId = String(item.id ?? "");
-          output.push(item);
-
-          if (itemId) {
-            outputIndex.set(itemId, item);
-          }
-
-          if (item.type === "web_search_call") {
-            const action = readRecord(item.action);
-            handlers?.onToolStart?.({
-              toolCallId: itemId,
-              tool: WEB_SEARCH_TOOL_NAME,
-              input: action,
-            });
-            handlers?.onToolEnd?.({
-              toolCallId: itemId,
-              tool: WEB_SEARCH_TOOL_NAME,
-              result: action,
-            });
-          }
-        }
+      if (itemId) {
+        outputIndex.set(itemId, item);
       }
     }
-  }
+
+    if (type === "response.output_item.done") {
+      const item = readRecord(payload.item);
+      const itemId = String(item.id ?? "");
+      output.push(item);
+
+      if (itemId) {
+        outputIndex.set(itemId, item);
+      }
+
+      if (item.type === "web_search_call") {
+        emitWebSearchToolEvent(item, handlers);
+      }
+    }
+  });
 
   if (output.length === 0 && outputIndex.size > 0) {
     output.push(...outputIndex.values());
@@ -405,27 +383,4 @@ async function readOpenAIResponsesStream(
       ...(thinkingText ? { thinking: thinkingText } : {}),
     },
   };
-}
-
-function parseToolArguments(raw: string): Record<string, unknown> {
-  const trimmed = raw.trim();
-
-  if (!trimmed) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function readRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }

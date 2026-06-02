@@ -20,6 +20,12 @@ const NATIVE_DOCUMENT_MEDIA_TYPES: Record<ProviderName, ReadonlySet<string>> = {
     "text/csv",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ]),
+  openrouter: new Set([
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]),
 };
 
 export function registerDocumentTextParser(

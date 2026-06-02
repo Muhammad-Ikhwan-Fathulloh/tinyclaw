@@ -82,6 +82,7 @@ import {
   getAvailableModels,
   getDefaultModel,
   getModelById,
+  isOpenRouterModelSlug,
   resolveModel,
 } from "../providers";
 import { createSuperBotTools } from "../tools/super-bot-tools";
@@ -574,32 +575,39 @@ export class AgentService {
       throw new Error("Provider is not configured.");
     }
 
-    const option = getModelById(model);
+    const trimmedModel = model.trim();
+    const option = getModelById(trimmedModel);
+    let targetProvider = option?.provider;
+    let targetModel = option?.id;
 
     if (!option) {
-      throw new Error(`Unknown model: ${model}`);
+      if (isOpenRouterModelSlug(trimmedModel)) {
+        targetProvider = "openrouter";
+        targetModel = trimmedModel;
+      } else {
+        throw new Error(`Unknown model: ${model}`);
+      }
     }
 
     const nextConfig = {
       ...this.userConfig,
-      provider: option.provider,
-      model: option.id,
+      provider: targetProvider!,
+      model: targetModel!,
     };
 
     const currentProvider = detectProvider(process.env, this.userConfig);
 
-    if (option.provider !== currentProvider) {
-      const apiKey =
-        option.provider === "openai"
-          ? readEnvValue(process.env, "OPENAI_API_KEY")
-          : readEnvValue(process.env, "ANTHROPIC_API_KEY");
+    if (targetProvider !== currentProvider) {
+      const envVar =
+        targetProvider === "openai"
+          ? "OPENAI_API_KEY"
+          : targetProvider === "anthropic"
+            ? "ANTHROPIC_API_KEY"
+            : "OPENROUTER_API_KEY";
+      const apiKey = readEnvValue(process.env, envVar);
 
       if (!apiKey) {
-        throw new Error(
-          `Switching to ${option.provider} requires ${
-            option.provider === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
-          }.`,
-        );
+        throw new Error(`Switching to ${targetProvider} requires ${envVar}.`);
       }
 
       nextConfig.apiKey = apiKey;
@@ -611,7 +619,7 @@ export class AgentService {
     const nextProvider = createProviderFromSources(process.env, this.userConfig);
 
     if (!nextProvider) {
-      throw new Error(`Could not configure provider for ${option.provider}.`);
+      throw new Error(`Could not configure provider for ${targetProvider}.`);
     }
 
     this._providerConfigured = true;
@@ -619,14 +627,15 @@ export class AgentService {
     this.sessions.clear();
 
     return {
-      provider: option.provider,
-      currentModel: option.id,
+      provider: targetProvider!,
+      currentModel: targetModel!,
     };
   }
 
   async configureProvider(
     apiKey: string,
     model?: string,
+    explicitProvider?: UserProviderConfig["provider"],
   ): Promise<ConfigureProviderResponse> {
     const trimmedKey = apiKey.trim();
 
@@ -634,7 +643,7 @@ export class AgentService {
       throw new Error("API key is required.");
     }
 
-    const provider = inferProviderFromApiKey(trimmedKey);
+    const provider = explicitProvider ?? inferProviderFromApiKey(trimmedKey);
     const selectedModel = model?.trim()
       ? resolveModel(provider, model.trim())
       : getDefaultModel(provider);

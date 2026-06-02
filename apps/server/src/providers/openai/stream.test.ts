@@ -1,0 +1,104 @@
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { createOpenAIProvider } from "./index";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function streamFromChunks(chunks: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+
+      controller.close();
+    },
+  });
+}
+
+describe("OpenAI provider streaming", () => {
+  test("streams chat completion chunks", async () => {
+    const fetchMock = mock(async () => {
+      return new Response(
+        streamFromChunks([
+          'data:{"choices":[{"delta":{"content":"Hel"}}]}\r\n\r\n',
+          'data:{"choices":[{"delta":{"content":"lo"}}]}\r\n\r\n',
+          "data:[DONE]\r\n\r\n",
+        ]),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = createOpenAIProvider({
+      apiKey: "sk-test",
+      model: "gpt-5.4",
+    });
+
+    const chunks: string[] = [];
+    const result = await provider.streamChat(
+      {
+        system: "You are helpful.",
+        messages: [{ role: "user", content: "Say hello" }],
+      },
+      {
+        onChunk: (delta) => chunks.push(delta),
+      },
+    );
+
+    expect(result.content).toBe("Hello");
+    expect(chunks).toEqual(["Hel", "lo"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("streams responses api text and thinking", async () => {
+    const fetchMock = mock(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe("https://api.openai.com/v1/responses");
+
+      return new Response(
+        streamFromChunks([
+          'event: response.output_text.delta\r\ndata:{"type":"response.output_text.delta","delta":"Hi"}\r\n\r\n',
+          'data:{"type":"response.reasoning_summary_text.delta","delta":"Plan"}\r\n\r\n',
+          'data:{"type":"response.output_item.done","item":{"id":"msg_1","type":"message","content":[{"type":"output_text","text":"Hi"}]}}\r\n\r\n',
+          "data:[DONE]\r\n\r\n",
+        ]),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = createOpenAIProvider({
+      apiKey: "sk-test",
+      model: "gpt-5.4",
+    });
+
+    const chunks: string[] = [];
+    const thinking: string[] = [];
+    const result = await provider.streamChat(
+      {
+        system: "You are helpful.",
+        messages: [{ role: "user", content: "Think, then answer" }],
+        providerOptions: {
+          thinking: { enabled: true, effort: "medium" },
+        },
+      },
+      {
+        onChunk: (delta) => chunks.push(delta),
+        onThinking: (delta) => thinking.push(delta),
+      },
+    );
+
+    expect(result.content).toBe("Hi");
+    expect(result.assistantMessage.thinking).toBe("Plan");
+    expect(chunks).toEqual(["Hi"]);
+    expect(thinking).toEqual(["Plan"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

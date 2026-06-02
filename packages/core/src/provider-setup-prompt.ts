@@ -66,6 +66,10 @@ function resolveModelChoice(
     return match.id;
   }
 
+  if (provider === "openrouter" && /^[\w.-]+\/[\w.:-]+$/.test(input)) {
+    return input;
+  }
+
   const numeric = Number(input);
   const models = options.getModelsForProvider(provider);
 

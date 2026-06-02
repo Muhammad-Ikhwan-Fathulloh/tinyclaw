@@ -43,7 +43,7 @@ export function ProviderSetupForm({
         <div>
           <h3 className="text-sm font-medium text-foreground">Connect a provider</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Choose OpenAI or Anthropic, paste your API key, and pick a default model.
+            Choose a provider, paste your API key, and pick a default model.
           </p>
         </div>
       ) : null}
@@ -115,6 +115,38 @@ export function ProviderSetupForm({
         </Select>
       </div>
 
+      {form.selectedProvider === "openrouter" ? (
+        <div className="space-y-2">
+          <label htmlFor="custom-model" className="text-sm font-medium text-foreground">
+            Custom model ID <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <InputGroup>
+            <InputGroupInput
+              id="custom-model"
+              type="text"
+              autoComplete="off"
+              placeholder="anthropic/claude-sonnet-4-6"
+              value={form.customModel}
+              disabled={form.busy}
+              aria-invalid={form.customModelError != null}
+              aria-describedby={
+                form.customModelError ? "custom-model-error" : "custom-model-hint"
+              }
+              onChange={(event) => form.handleCustomModelChange(event.target.value)}
+            />
+          </InputGroup>
+          {form.customModelError ? (
+            <p id="custom-model-error" className="text-sm text-destructive" role="alert">
+              {form.customModelError}
+            </p>
+          ) : (
+            <p id="custom-model-hint" className="text-xs text-muted-foreground">
+              Overrides the catalog selection when set. Use vendor/model format from OpenRouter.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       {form.formError ? (
         <p className="text-sm text-destructive" role="alert">
           {form.formError}
@@ -149,9 +181,15 @@ export function ProviderOptionCards({
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium text-foreground">Provider</legend>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {PROVIDER_OPTIONS.map((option) => {
           const active = selectedProvider === option.id;
+          const subtitle =
+            option.id === "openai"
+              ? "GPT models"
+              : option.id === "anthropic"
+                ? "Claude models"
+                : "Many models via one key";
 
           return (
             <button
@@ -168,9 +206,7 @@ export function ProviderOptionCards({
               )}
             >
               <p className="text-sm font-medium text-foreground">{option.label}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {option.id === "openai" ? "GPT models" : "Claude models"}
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
             </button>
           );
         })}

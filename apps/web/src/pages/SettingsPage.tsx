@@ -55,7 +55,10 @@ import {
   filterModelsByProvider,
   formatProviderLabel,
   getModelDisplayName,
+  PROVIDER_OPTIONS,
+  resolveModelForProvider,
   validateApiKeyForProvider,
+  validateCustomOpenRouterModel,
 } from "@/lib/models";
 import { getBrowserTimezone } from "@/lib/timezones";
 import { cn } from "@/lib/utils";
@@ -95,7 +98,11 @@ export function SettingsPage() {
   }, [catalogQueryError]);
 
   useEffect(() => {
-    if (models?.provider === "openai" || models?.provider === "anthropic") {
+    if (
+      models?.provider === "openai" ||
+      models?.provider === "anthropic" ||
+      models?.provider === "openrouter"
+    ) {
       setModelDraft(models.currentModel ?? "");
     }
   }, [models?.provider, models?.currentModel]);
@@ -541,18 +548,25 @@ function SwitchProviderSection({
   configureProvider: ReturnType<typeof useAppContext>["configureProvider"];
   onSuccess: (message: string) => void;
 }) {
-  const defaultTarget = currentProvider === "openai" ? "anthropic" : "openai";
+  const defaultTarget =
+    PROVIDER_OPTIONS.find((option) => option.id !== currentProvider)?.id ?? "openai";
   const [targetProvider, setTargetProvider] = useState<InferredProvider>(defaultTarget);
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeyTouched, setApiKeyTouched] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("");
+  const [customModel, setCustomModel] = useState("");
+  const [customModelError, setCustomModelError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    setTargetProvider(currentProvider === "openai" ? "anthropic" : "openai");
+    setTargetProvider((current) =>
+      current === currentProvider
+        ? (PROVIDER_OPTIONS.find((option) => option.id !== currentProvider)?.id ?? "openai")
+        : current,
+    );
   }, [currentProvider]);
 
   const targetModels = useMemo(
@@ -590,9 +604,12 @@ function SwitchProviderSection({
 
     const trimmedKey = apiKey.trim();
     const nextApiKeyError = validateApiKeyForProvider(trimmedKey, targetProvider);
+    const nextCustomModelError =
+      targetProvider === "openrouter" ? validateCustomOpenRouterModel(customModel) : null;
 
     setApiKeyTouched(true);
     setApiKeyError(nextApiKeyError);
+    setCustomModelError(nextCustomModelError);
     setLocalError(null);
 
     if (nextApiKeyError) {
@@ -600,13 +617,29 @@ function SwitchProviderSection({
       return;
     }
 
+    if (nextCustomModelError) {
+      document.getElementById("switch-custom-model")?.focus();
+      return;
+    }
+
+    const modelToSave = resolveModelForProvider(
+      targetProvider,
+      selectedModel,
+      customModel,
+    );
+
     setBusy(true);
 
     try {
-      const result = await configureProvider(trimmedKey, selectedModel || undefined);
+      const result = await configureProvider(
+        trimmedKey,
+        modelToSave || undefined,
+        targetProvider,
+      );
       setApiKey("");
       setApiKeyTouched(false);
       setShowApiKey(false);
+      setCustomModel("");
       onSuccess(
         `Switched to ${formatProviderLabel(result.provider)} with ${getModelDisplayName(catalog, result.currentModel)}.`,
       );
@@ -635,6 +668,10 @@ function SwitchProviderSection({
         onSelect={(provider) => {
           setTargetProvider(provider);
           setLocalError(null);
+          if (provider !== "openrouter") {
+            setCustomModel("");
+            setCustomModelError(null);
+          }
           if (apiKeyTouched && apiKey.trim()) {
             setApiKeyError(validateApiKeyForProvider(apiKey, provider));
           }
@@ -717,6 +754,42 @@ function SwitchProviderSection({
           </SelectContent>
         </Select>
       </div>
+
+      {targetProvider === "openrouter" ? (
+        <div className="space-y-2">
+          <label htmlFor="switch-custom-model" className="text-sm font-medium text-foreground">
+            Custom model ID <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <InputGroup>
+            <InputGroupInput
+              id="switch-custom-model"
+              type="text"
+              autoComplete="off"
+              placeholder="anthropic/claude-sonnet-4-6"
+              value={customModel}
+              disabled={busy}
+              aria-invalid={customModelError != null}
+              aria-describedby={
+                customModelError ? "switch-custom-model-error" : "switch-custom-model-hint"
+              }
+              onChange={(event) => {
+                const value = event.target.value;
+                setCustomModel(value);
+                setCustomModelError(validateCustomOpenRouterModel(value));
+              }}
+            />
+          </InputGroup>
+          {customModelError ? (
+            <p id="switch-custom-model-error" className="text-sm text-destructive" role="alert">
+              {customModelError}
+            </p>
+          ) : (
+            <p id="switch-custom-model-hint" className="text-xs text-muted-foreground">
+              Overrides the catalog selection when set.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       {localError ? (
         <p className="text-sm text-destructive" role="alert">

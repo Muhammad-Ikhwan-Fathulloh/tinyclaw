@@ -20,7 +20,11 @@ interface AppContextValue {
   loading: boolean;
   error: string | null;
   setModel: (modelId: string) => Promise<void>;
-  configureProvider: (apiKey: string, model?: string) => Promise<ConfigureProviderResponse>;
+  configureProvider: (
+    apiKey: string,
+    model?: string,
+    provider?: ConfigureProviderResponse["provider"],
+  ) => Promise<ConfigureProviderResponse>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -40,8 +44,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const configureProvider = useCallback(
-    async (apiKey: string, model?: string) => {
-      return configureProviderMutation.mutateAsync({ apiKey, model });
+    async (
+      apiKey: string,
+      model?: string,
+      provider?: ConfigureProviderResponse["provider"],
+    ) => {
+      return configureProviderMutation.mutateAsync({ apiKey, model, provider });
     },
     [configureProviderMutation],
   );
