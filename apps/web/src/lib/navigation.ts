@@ -1,13 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BlocksIcon,
+  BotIcon,
   CircleGaugeIcon,
   BrainIcon,
   KanbanIcon,
   MessageCircleIcon,
   ClockIcon,
   CogIcon,
-  UserRoundIcon,
   WorkflowIcon,
 } from "lucide-react";
 
@@ -107,7 +107,7 @@ export const NAV_ITEM_ICONS: Record<PageId, LucideIcon> = {
   status: CircleGaugeIcon,
   chat: MessageCircleIcon,
   history: ClockIcon,
-  profiles: UserRoundIcon,
+  profiles: BotIcon,
   tools: BlocksIcon,
   soul: BrainIcon,
   automations: WorkflowIcon,
