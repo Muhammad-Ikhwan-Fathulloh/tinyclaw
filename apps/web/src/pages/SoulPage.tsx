@@ -268,7 +268,9 @@ export function SoulPage() {
               }}
             >
               <SelectTrigger className="min-w-0 flex-1" aria-label="Profile">
-                <SelectValue placeholder="Select profile" />
+                <SelectValue placeholder="Select profile">
+                  {profiles.find((profile) => profile.id === profileId)?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {profiles.map((profile) => (

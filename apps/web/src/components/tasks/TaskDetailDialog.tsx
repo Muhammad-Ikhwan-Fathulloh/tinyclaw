@@ -1,6 +1,7 @@
 import type { ProfileSummary, StoredTask } from "@tinyclaw/core/contract";
 import { PlayIcon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -54,7 +55,6 @@ export function TaskDetailDialog({
   const [profileId, setProfileId] = useState("");
   const [generateError, setGenerateError] = useState<string | null>(null);
   const draftPromptMutation = useDraftTaskPromptMutation();
-  const selectedProfileName = profiles.find((profile) => profile.id === profileId)?.name;
   const generating = draftPromptMutation.isPending;
   const actionsBusy = busy || generating;
 
@@ -167,12 +167,17 @@ export function TaskDetailDialog({
               }}
             >
               <SelectTrigger id="detail-profile">
-                <SelectValue placeholder="Select profile">{selectedProfileName}</SelectValue>
+                <SelectValue placeholder="Select profile">
+                  {profiles.find((profile) => profile.id === profileId)?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {profiles.map((profile) => (
                   <SelectItem key={profile.id} value={profile.id}>
-                    {profile.name}
+                    <span className="flex items-center gap-2">
+                      <ProfileAvatar profile={profile} size="sm" />
+                      <span>{profile.name}</span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -1,11 +1,10 @@
 import type { ProviderModelOption } from "@tinyclaw/core/contract";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   EyeIcon,
   EyeOffIcon,
-  KeyRoundIcon,
 } from "lucide-react";
 import { ProviderSelect, ProviderSetupForm } from "@/components/ProviderSetupForm";
 import { TelegramSettingsCard } from "@/components/TelegramSettingsCard";
@@ -20,6 +19,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   InputGroup,
   InputGroupAddon,
@@ -58,8 +65,6 @@ import {
   validateCustomOpenRouterModel,
 } from "@/lib/models";
 import { getBrowserTimezone } from "@/lib/timezones";
-import { cn } from "@/lib/utils";
-
 export function SettingsPage() {
   const { health, models, configureProvider, setModel } = useAppContext();
   const { data: catalogResponse, isLoading: catalogLoading, error: catalogQueryError } =
@@ -407,28 +412,27 @@ export function SettingsPage() {
 
       <TelegramSettingsCard />
 
-      <Card>
-        {!isConfigured ? (
-          <CardHeader>
-            <div className="flex items-start gap-3">
-              <AlertTriangleIcon className="mt-0.5 size-5 shrink-0 text-amber-200" />
-              <div className="space-y-1">
-                <CardTitle className="text-amber-100">No provider connected</CardTitle>
-                <CardDescription className="text-amber-200/90">
-                  Chat runs in offline mode until you connect OpenAI or Anthropic below.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        ) : null}
-
-        <CardContent className={cn("space-y-5", isConfigured && "pt-4")}>
+      <Card className="w-full">
+        <CardContent className="p-0">
           {!isConfigured ? (
-            <ProviderSetupForm
-              onSuccess={() => {
-                setSuccessMessage("Provider connected.");
-              }}
-            />
+            <>
+              <div className="flex items-start gap-3 border-b border-border px-4 py-3">
+                <AlertTriangleIcon className="mt-0.5 size-5 shrink-0 text-amber-200" aria-hidden="true" />
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium text-amber-100">No provider connected</p>
+                  <p className="text-xs text-amber-200/90">
+                    Chat is offline until you add an API key below.
+                  </p>
+                </div>
+              </div>
+              <div className="px-4 py-4">
+                <ProviderSetupForm
+                  onSuccess={() => {
+                    setSuccessMessage("Provider connected.");
+                  }}
+                />
+              </div>
+            </>
           ) : (
             <ConnectedProviderSection
               models={models}
@@ -475,7 +479,7 @@ export function SettingsPage() {
 
       {isConfigured && models?.provider ? (
         <Card className="w-full">
-          <CardHeader className="pb-1">
+          <CardHeader className="border-b border-border pb-3">
             <CardTitle>Switch provider</CardTitle>
             <CardDescription>
               Currently on {formatProviderLabel(models.provider)}. Chat history resets when you
@@ -780,6 +784,28 @@ function SwitchProviderSection({
   );
 }
 
+function SettingsRow({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description?: React.ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="min-w-0 space-y-0.5">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description ? (
+          <div className="text-xs text-muted-foreground">{description}</div>
+        ) : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function ConnectedProviderSection({
   models,
   configuredModels,
@@ -824,35 +850,43 @@ function ConnectedProviderSection({
   onSubmitReplaceKey: (event: React.FormEvent) => void;
 }) {
   const currentProvider = models.provider as SelectedProvider;
+  const currentModelName =
+    configuredModels.find((model) => model.id === models.currentModel)?.name ??
+    models.currentModel;
 
   return (
-    <>
-      <FormField
-        id="connected-model"
+    <div className="divide-y divide-border">
+      <div className="px-4 py-3">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-sm font-medium text-foreground">Provider</p>
+          <p className="text-xs text-muted-foreground">
+            {formatProviderLabel(currentProvider)} · {currentModelName}
+          </p>
+        </div>
+      </div>
+
+      <SettingsRow
         label="Model"
-        footer={
-          <>
-            <p className="text-xs text-muted-foreground">
-              Chat history resets when the model changes.
-            </p>
-            {formError && !replaceKeyOpen ? (
-              <p className="text-sm text-destructive" role="alert">
-                {formError}
-              </p>
-            ) : null}
-          </>
+        description={
+          modelSaveHint ? (
+            <span className="text-emerald-200" role="status">
+              {modelSaveHint}
+            </span>
+          ) : (
+            "Chat history resets when you change models"
+          )
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Select
             value={modelDraft}
             disabled={modelBusy || configuredModels.length === 0}
             onValueChange={(value) => onModelDraftChange(value != null ? String(value) : "")}
           >
-            <SelectTrigger id="connected-model" className="w-full min-w-[220px] sm:max-w-sm">
-              <SelectValue placeholder="Select a model" />
+            <SelectTrigger id="connected-model" className="w-[11rem] sm:w-[13rem]">
+              <SelectValue placeholder="Select model" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent align="end">
               {configuredModels.map((model) => (
                 <SelectItem key={model.id} value={model.id}>
                   {model.name}
@@ -861,49 +895,48 @@ function ConnectedProviderSection({
               ))}
             </SelectContent>
           </Select>
-          {modelDirty ? (
-            <Button
-              type="button"
-              size="sm"
-              disabled={modelBusy || !modelDraft}
-              onClick={onSaveModel}
-            >
-              {modelBusy ? (
-                <>
-                  <Spinner className="mr-2" />
-                  Saving…
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
-          ) : null}
-          {modelSaveHint ? (
-            <span className="text-xs text-emerald-300" role="status" aria-live="polite">
-              {modelSaveHint}
-            </span>
-          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            disabled={modelBusy || !modelDraft || !modelDirty}
+            onClick={onSaveModel}
+          >
+            {modelBusy ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving…
+              </>
+            ) : (
+              "Save"
+            )}
+          </Button>
         </div>
-      </FormField>
+      </SettingsRow>
 
-      <div className="border-t border-border pt-4">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <KeyRoundIcon className="size-3.5 text-muted-foreground" aria-hidden="true" />
-          <span className="text-muted-foreground">API key</span>
-          <span className="font-medium text-foreground">Configured</span>
-          {!replaceKeyOpen ? (
-            <button
-              type="button"
-              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-              onClick={onOpenReplaceKey}
-            >
-              Replace key
-            </button>
-          ) : null}
-        </div>
+      <SettingsRow label="API key" description="Saved on the server">
+        <Button type="button" size="sm" variant="outline" onClick={onOpenReplaceKey}>
+          Replace key
+        </Button>
+      </SettingsRow>
 
-        {replaceKeyOpen ? (
-          <form className="mt-4 space-y-3" onSubmit={onSubmitReplaceKey}>
+      <Dialog
+        open={replaceKeyOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCancelReplaceKey();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form className="space-y-4" onSubmit={onSubmitReplaceKey}>
+            <DialogHeader>
+              <DialogTitle>Replace API key</DialogTitle>
+              <DialogDescription>
+                Paste a new key from your {formatProviderLabel(currentProvider)} dashboard. The
+                current model stays the same.
+              </DialogDescription>
+            </DialogHeader>
+
             <InputGroup>
               <InputGroupInput
                 id="replace-api-key"
@@ -913,9 +946,7 @@ function ConnectedProviderSection({
                 value={apiKey}
                 disabled={replaceKeyBusy}
                 aria-invalid={apiKeyError != null}
-                aria-describedby={
-                  apiKeyError ? "replace-api-key-error" : "replace-api-key-hint"
-                }
+                aria-describedby={apiKeyError ? "replace-api-key-error" : undefined}
                 onBlur={onApiKeyBlur}
                 onChange={(event) => onApiKeyChange(event.target.value)}
               />
@@ -929,22 +960,28 @@ function ConnectedProviderSection({
                 </InputGroupButton>
               </InputGroupAddon>
             </InputGroup>
+
             {apiKeyError ? (
               <p id="replace-api-key-error" className="text-sm text-destructive" role="alert">
                 {apiKeyError}
               </p>
-            ) : (
-              <p id="replace-api-key-hint" className="text-xs text-muted-foreground">
-                Paste the API key from your {formatProviderLabel(currentProvider)} dashboard.
-              </p>
-            )}
+            ) : null}
             {formError ? (
               <p className="text-sm text-destructive" role="alert">
                 {formError}
               </p>
             ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" size="sm" disabled={replaceKeyBusy || !apiKey.trim()}>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={replaceKeyBusy}
+                onClick={onCancelReplaceKey}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={replaceKeyBusy || !apiKey.trim()}>
                 {replaceKeyBusy ? (
                   <>
                     <Spinner className="mr-2" />
@@ -954,18 +991,10 @@ function ConnectedProviderSection({
                   "Save key"
                 )}
               </Button>
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                disabled={replaceKeyBusy}
-                onClick={onCancelReplaceKey}
-              >
-                Cancel
-              </button>
-            </div>
+            </DialogFooter>
           </form>
-        ) : null}
-      </div>
-    </>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

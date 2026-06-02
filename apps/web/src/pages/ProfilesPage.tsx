@@ -611,7 +611,9 @@ export function ProfilesPage() {
                 }}
               >
                 <SelectTrigger className="min-w-0 flex-1" aria-label="Selected profile">
-                  <SelectValue placeholder="Select profile" />
+                  <SelectValue placeholder="Select profile">
+                    {filteredProfiles.find((profile) => profile.id === selectedId)?.name}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {filteredProfiles.map((profile) => (

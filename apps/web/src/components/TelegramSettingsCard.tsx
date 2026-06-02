@@ -332,7 +332,9 @@ export function TelegramSettingsCard({
             }}
           >
             <SelectTrigger id="telegram-profile" className="w-[11rem] sm:w-[13rem]">
-              <SelectValue placeholder="Profile" />
+              <SelectValue placeholder="Profile">
+                {profiles.find((profile) => profile.id === profileId)?.name}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent align="end">
               {profiles.map((profile) => (

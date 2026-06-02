@@ -113,11 +113,6 @@ export function HistoryPage() {
     [filteredSessions],
   );
 
-  const selectedProfile = useMemo(
-    () => profiles.find((profile) => profile.id === profileId),
-    [profiles, profileId],
-  );
-
   const countLabel = useMemo(() => {
     if (initialLoading) {
       return "Loading…";
@@ -176,12 +171,7 @@ export function HistoryPage() {
           >
             <SelectTrigger className="w-full min-w-44 sm:w-52" aria-label="Profile">
               <SelectValue placeholder="Profile">
-                {selectedProfile ? (
-                  <span className="flex items-center gap-2">
-                    <ProfileAvatar profile={selectedProfile} size="xs" />
-                    <span>{selectedProfile.name}</span>
-                  </span>
-                ) : null}
+                {profiles.find((profile) => profile.id === profileId)?.name}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
