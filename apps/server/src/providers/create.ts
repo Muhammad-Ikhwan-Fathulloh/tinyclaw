@@ -27,16 +27,20 @@ function createProvider(options: CreateProviderOptions): ProviderClient {
     options.userConfig?.customModels,
   );
 
+  const baseUrlOverride = options.userConfig?.baseUrl?.trim();
+
   switch (options.provider) {
     case "openai":
       return createOpenAIProvider({
         apiKey: options.apiKey,
         model,
+        ...(baseUrlOverride ? { baseUrl: baseUrlOverride } : {}),
       });
     case "anthropic":
       return createAnthropicProvider({
         apiKey: options.apiKey,
         model,
+        ...(baseUrlOverride ? { baseUrl: baseUrlOverride } : {}),
       });
     case "openrouter":
       return createOpenRouterProvider({
@@ -47,18 +51,18 @@ function createProvider(options: CreateProviderOptions): ProviderClient {
       return createGeminiProvider({
         apiKey: options.apiKey,
         model,
+        ...(baseUrlOverride ? { baseUrl: baseUrlOverride } : {}),
       });
     case "openai_compatible": {
-      const baseUrl = options.userConfig?.baseUrl?.trim();
       const displayName = options.userConfig?.displayName?.trim();
 
-      if (!baseUrl || !displayName) {
+      if (!baseUrlOverride || !displayName) {
         throw new Error("OpenAI-compatible provider requires baseUrl and displayName.");
       }
 
       return createOpenAICompatibleProvider({
         apiKey: options.apiKey,
-        baseUrl,
+        baseUrl: baseUrlOverride,
         model,
         displayName,
       });

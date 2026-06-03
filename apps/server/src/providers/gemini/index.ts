@@ -20,10 +20,15 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 export interface GeminiProviderOptions {
   apiKey: string;
   model?: string;
+  baseUrl?: string;
 }
 
-function createGeminiClient(apiKey: string): GoogleGenAI {
-  return new GoogleGenAI({ apiKey });
+function createGeminiClient(apiKey: string, baseUrl?: string): GoogleGenAI {
+  const trimmed = baseUrl?.trim();
+  return new GoogleGenAI({
+    apiKey,
+    ...(trimmed ? { httpOptions: { baseUrl: trimmed } } : {}),
+  });
 }
 
 function formatGeminiError(error: unknown): Error {
@@ -172,7 +177,7 @@ export function createGeminiProvider(
   options: GeminiProviderOptions,
 ): ProviderClient {
   const model = options.model ?? DEFAULT_MODEL;
-  const client = createGeminiClient(options.apiKey);
+  const client = createGeminiClient(options.apiKey, options.baseUrl);
 
   return {
     name: "gemini",

@@ -1,21 +1,12 @@
 import { findCustomModel, type CustomModelEntry } from "@tinyclaw/core";
 import type { ProviderName } from "@tinyclaw/core";
+import type { ProviderModelOption as ContractProviderModelOption } from "@tinyclaw/core/contract";
 import { resolveCompatibleDefaultModel } from "./compatible-models";
 
-export interface ProviderModelOption {
-  id: string;
-  name: string;
-  provider: ProviderName;
+export type ProviderModelOption = ContractProviderModelOption & {
   contextWindow: number;
   maxOutputTokens: number;
-  default?: boolean;
-  /** OpenRouter only: whether extended thinking (`reasoning`) is sent for this model. */
-  supportsThinking?: boolean;
-  /** Catalog estimate: USD per 1M input tokens */
-  inputPerMillionUsd?: number;
-  /** Catalog estimate: USD per 1M output tokens */
-  outputPerMillionUsd?: number;
-}
+};
 
 export const AVAILABLE_MODELS: ProviderModelOption[] = [
   {
@@ -206,6 +197,13 @@ export function resolveModel(
     if (option?.provider === provider) {
       return trimmed;
     }
+  }
+
+  if (
+    trimmed &&
+    (provider === "openai" || provider === "anthropic" || provider === "gemini")
+  ) {
+    return trimmed;
   }
 
   return getDefaultModel(provider, customModels);

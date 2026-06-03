@@ -387,7 +387,10 @@ export interface ProviderModelOption {
   id: string;
   name: string;
   provider: ProviderName;
+  contextWindow?: number;
+  maxOutputTokens?: number;
   default?: boolean;
+  supportsThinking?: boolean;
   inputPerMillionUsd?: number;
   outputPerMillionUsd?: number;
 }

@@ -12,16 +12,19 @@ const PROVIDER_LABEL = "Anthropic";
 export interface AnthropicProviderOptions {
   apiKey: string;
   model?: string;
+  baseUrl?: string;
   /** Injected in tests to mock HTTP without touching global fetch. */
   fetch?: typeof fetch;
 }
 
 function createAnthropicClient(
   apiKey: string,
+  baseUrl?: string,
   fetchImpl?: typeof fetch,
 ): Anthropic {
   return new Anthropic({
     apiKey,
+    ...(baseUrl?.trim() ? { baseURL: baseUrl.trim() } : {}),
     ...(fetchImpl ? { fetch: fetchImpl } : {}),
   });
 }
@@ -52,7 +55,7 @@ export function createAnthropicProvider(
   options: AnthropicProviderOptions,
 ): ProviderClient {
   const model = options.model ?? "claude-sonnet-4-6";
-  const client = createAnthropicClient(options.apiKey, options.fetch);
+  const client = createAnthropicClient(options.apiKey, options.baseUrl, options.fetch);
 
   return {
     name: "anthropic",

@@ -842,7 +842,7 @@ function SwitchProviderSection({
               </InputGroup>
             </InlineField>
             {apiKeyError && (
-              <p id="switch-api-key-error" className="mt-1.5 pl-[calc(6rem+0.75rem)] text-sm text-destructive" role="alert">
+              <p id="switch-api-key-error" className="mt-1.5 pl-27 text-sm text-destructive" role="alert">
                 {apiKeyError}
               </p>
             )}

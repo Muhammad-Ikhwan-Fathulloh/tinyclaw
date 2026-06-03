@@ -35,6 +35,14 @@ describe("resolveModel", () => {
     expect(getDefaultModel("gemini")).toBe("gemini-2.5-flash");
   });
 
+  test("passes through non-catalog models for native providers", () => {
+    expect(resolveModel("anthropic", "claude-haiku-4-5-20251001")).toBe(
+      "claude-haiku-4-5-20251001",
+    );
+    expect(resolveModel("openai", "gpt-4o-2025-08")).toBe("gpt-4o-2025-08");
+    expect(resolveModel("gemini", "gemini-3.0-ultra")).toBe("gemini-3.0-ultra");
+  });
+
   test("resolves compatible models from custom list", () => {
     const customModels = [{ id: "llama3.2", default: true }];
     expect(resolveModel("openai_compatible", "llama3.2", customModels)).toBe(

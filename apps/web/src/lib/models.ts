@@ -196,6 +196,11 @@ export function buildConfigureProviderRequest(options: {
     };
   }
 
+  const baseUrl = options.baseUrl?.trim();
+  if (baseUrl) {
+    return { ...request, baseUrl };
+  }
+
   return request;
 }
 

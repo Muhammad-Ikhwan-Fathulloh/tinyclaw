@@ -62,13 +62,13 @@ export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps)
           placeholder="Search provider or model..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="min-w-[140px] flex-1"
+          className="min-w-35 flex-1"
         />
         <Select
           value={costFilter}
           onValueChange={(value) => setCostFilter(value as "all" | "free")}
         >
-          <SelectTrigger className="w-[110px]">
+          <SelectTrigger className="w-27.5">
             <SelectValue>{costFilter === "free" ? "Free only" : "All"}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -112,7 +112,14 @@ export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps)
                 key={`${row.providerId}-${row.modelId}`}
                 type="button"
                 onClick={() => onSelect(row.tinyclawProvider, row.modelId, row)}
-                className="flex w-full cursor-pointer items-start gap-2.5 border-b border-border px-3 py-2 text-left transition-colors last:border-0 hover:bg-muted"
+                disabled={!row.supported}
+                title={row.unsupportedReason}
+                className={cn(
+                  "flex w-full items-start gap-2.5 border-b border-border px-3 py-2 text-left transition-colors last:border-0",
+                  row.supported
+                    ? "cursor-pointer hover:bg-muted"
+                    : "cursor-not-allowed opacity-50",
+                )}
               >
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 text-xs text-muted-foreground">
@@ -138,6 +145,14 @@ export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps)
                         FREE
                       </span>
                     )}
+                    {row.experimental && (
+                      <span
+                        title="Untested with tinyclaw — feature support (tools, JSON mode, streaming) may vary."
+                        className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-amber-500/30"
+                      >
+                        experimental
+                      </span>
+                    )}
                     {row.context > 0 && (
                       <span>
                         {row.context >= 1000
@@ -155,6 +170,11 @@ export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps)
                     )}
                     {row.reasoning && (
                       <span className="rounded bg-muted px-1 py-0.5 text-[0.6rem]">reasoning</span>
+                    )}
+                    {!row.supported && (
+                      <span className="rounded bg-muted px-1 py-0.5 text-[0.6rem] uppercase">
+                        n/a
+                      </span>
                     )}
                   </div>
                 </div>

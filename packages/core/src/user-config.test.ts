@@ -48,4 +48,20 @@ describe("user config compatible provider", () => {
     expect(loaded?.baseUrl).toBe("http://localhost:11434/v1");
     expect(loaded?.customModels?.[0]?.id).toBe("llama3.2");
   });
+
+  test("round-trips base_url for native providers", async () => {
+    configDir = await mkdtemp(join(tmpdir(), "tinyclaw-config-"));
+    process.env.TINYCLAW_CONFIG_DIR = configDir;
+
+    await saveUserConfig({
+      provider: "anthropic",
+      apiKey: "kimi-key",
+      baseUrl: "https://api.kimi.com/coding/v1",
+      model: "claude-sonnet-4-6",
+    });
+
+    const loaded = await loadUserConfig();
+    expect(loaded?.provider).toBe("anthropic");
+    expect(loaded?.baseUrl).toBe("https://api.kimi.com/coding/v1");
+  });
 });

@@ -1,4 +1,4 @@
-import type { ConfigureProviderResponse } from "@tinyclaw/core/contract";
+import type { ConfigureProviderResponse, ProviderModelOption } from "@tinyclaw/core/contract";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ModelListRow } from "@/components/ModelListEditor";
 import { toCustomModelEntries } from "@/components/CustomCompatibleProviderFields";
@@ -42,6 +42,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
   const [displayName, setDisplayName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [customModels, setCustomModels] = useState<ModelListRow[]>([{ id: "", name: "" }]);
+  const [extraModels, setExtraModels] = useState<ProviderModelOption[]>([]);
   const [displayNameError, setDisplayNameError] = useState<string | null>(null);
   const [baseUrlError, setBaseUrlError] = useState<string | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
@@ -59,8 +60,13 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
       return modelsFromCustomRows(customModels);
     }
 
-    return filterModelsByProvider(catalog, selectedProvider);
-  }, [catalog, selectedProvider, customModels]);
+    const catalogModels = filterModelsByProvider(catalog, selectedProvider);
+    const catalogIds = new Set(catalogModels.map((model) => model.id));
+    const extras = extraModels.filter(
+      (model) => model.provider === selectedProvider && !catalogIds.has(model.id),
+    );
+    return [...catalogModels, ...extras];
+  }, [catalog, selectedProvider, customModels, extraModels]);
 
   useEffect(() => {
     if (filteredModels.length === 0) {
@@ -107,6 +113,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     }
 
     if (provider !== "openai_compatible") {
+      setBaseUrl("");
       setDisplayNameError(null);
       setBaseUrlError(null);
       setModelsError(null);
@@ -128,7 +135,26 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
           setApiKey("public");
         }
       } else {
+        setExtraModels((current) => {
+          if (
+            current.some(
+              (model) => model.provider === provider && model.id === modelId,
+            )
+          ) {
+            return current;
+          }
+          return [
+            ...current,
+            {
+              id: modelId,
+              name: row.modelName,
+              provider,
+              ...(row.context > 0 ? { contextWindow: row.context } : {}),
+            },
+          ];
+        });
         setSelectedModel(modelId);
+        setBaseUrl(row.apiUrl.replace(/\/$/, ""));
       }
     },
     [handleProviderSelect],
