@@ -28,12 +28,13 @@ export type BrowseSelectHandler = (
 interface ModelsBrowseListProps {
   onSelect: BrowseSelectHandler;
   className?: string;
+  provider?: SelectedProvider;
 }
 
 const MODEL_ROW_HEIGHT = 73;
 const MODEL_ROW_OVERSCAN = 6;
 
-export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps) {
+export function ModelsBrowseList({ onSelect, className, provider }: ModelsBrowseListProps) {
   const { data: rows = [], isLoading, error } = useModelsDev();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -48,6 +49,7 @@ export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps)
     let result = sortedRows;
     if (costFilter === "free") result = result.filter((row) => row.isFree);
     if (hideDeprecated) result = result.filter((row) => !row.deprecated);
+    if (provider) result = result.filter((row) => row.tinyclawProvider === provider);
     const query = deferredSearch.trim().toLowerCase();
     if (query) {
       result = result.filter(
@@ -58,7 +60,7 @@ export function ModelsBrowseList({ onSelect, className }: ModelsBrowseListProps)
       );
     }
     return result;
-  }, [sortedRows, costFilter, hideDeprecated, deferredSearch]);
+  }, [sortedRows, costFilter, hideDeprecated, deferredSearch, provider]);
 
   const freeCount = filtered.filter((row) => row.isFree).length;
 

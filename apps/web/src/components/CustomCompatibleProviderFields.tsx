@@ -1,11 +1,15 @@
 import type { CustomModelEntry } from "@tinyclaw/core/contract";
 import { useState } from "react";
-import { ModelListEditor, normalizeModelListRows, type ModelListRow } from "@/components/ModelListEditor";
+import { ModelsBrowseList } from "@/components/ModelsBrowseList";
+import {
+  ModelListEditor,
+  normalizeModelListRows,
+  type ModelListRow,
+} from "@/components/ModelListEditor";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
-import { Spinner } from "@/components/ui/spinner";
-import { client, formatError } from "@/lib/client";
+import type { ModelsDevRow } from "@/hooks/use-models-dev";
 
 interface CustomCompatibleProviderFieldsProps {
   displayName: string;
@@ -14,6 +18,7 @@ interface CustomCompatibleProviderFieldsProps {
   customModels: ModelListRow[];
   disabled?: boolean;
   density?: "default" | "compact";
+  showModelsEditor?: boolean;
   displayNameError?: string | null;
   baseUrlError?: string | null;
   modelsError?: string | null;
@@ -25,10 +30,10 @@ interface CustomCompatibleProviderFieldsProps {
 export function CustomCompatibleProviderFields({
   displayName,
   baseUrl,
-  apiKey,
   customModels,
   disabled,
   density = "default",
+  showModelsEditor = true,
   displayNameError,
   baseUrlError,
   modelsError,
@@ -36,36 +41,17 @@ export function CustomCompatibleProviderFields({
   onBaseUrlChange,
   onCustomModelsChange,
 }: CustomCompatibleProviderFieldsProps) {
-  const [fetchBusy, setFetchBusy] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isBrowsing, setIsBrowsing] = useState(false);
 
-  const handleFetchModels = async () => {
-    setFetchBusy(true);
-    setFetchError(null);
-
-    try {
-      const response = await client.discoverModels({
-        baseUrl: baseUrl.trim(),
-        apiKey: apiKey.trim() || undefined,
-      });
-      const remote = response.models.map(
-        (model): ModelListRow => ({
-          id: model.id,
-          name: model.name,
-        }),
-      );
-
-      if (remote.length === 0) {
-        setFetchError("No models returned from the server.");
-        return;
-      }
-
-      onCustomModelsChange(remote);
-    } catch (error) {
-      setFetchError(formatError(error));
-    } finally {
-      setFetchBusy(false);
+  const handleBrowseSelect = (_provider: string, modelId: string, row: ModelsDevRow) => {
+    const nextModel = { id: modelId, name: row.modelName };
+    if (customModels.some((model) => model.id === nextModel.id)) {
+      setIsBrowsing(false);
+      return;
     }
+
+    onCustomModelsChange([...customModels, nextModel]);
+    setIsBrowsing(false);
   };
 
   return (
@@ -126,41 +112,43 @@ export function CustomCompatibleProviderFields({
         </InputGroup>
       </FormField>
 
-      <FormField
-        id="provider-models"
-        label="Models"
-        density={density}
-        footer={
-          modelsError || fetchError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {modelsError ?? fetchError}
-            </p>
-          ) : null
-        }
-      >
-        <ModelListEditor
-          models={customModels}
-          disabled={disabled}
-          onChange={onCustomModelsChange}
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="mt-2"
-          disabled={disabled || fetchBusy || !baseUrl.trim()}
-          onClick={() => void handleFetchModels()}
+      {showModelsEditor ? (
+        <FormField
+          id="provider-models"
+          label="Models"
+          density={density}
+          footer={
+            modelsError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {modelsError}
+              </p>
+            ) : null
+          }
         >
-          {fetchBusy ? (
-            <>
-              <Spinner className="mr-2" />
-              Fetching…
-            </>
+          {isBrowsing ? (
+            <div className="space-y-2">
+              <ModelsBrowseList
+                onSelect={handleBrowseSelect}
+                className="h-72 rounded-md border border-border"
+              />
+              <div className="flex justify-end">
+                <Button type="button" size="sm" variant="outline" onClick={() => setIsBrowsing(false)}>
+                  Back
+                </Button>
+              </div>
+            </div>
           ) : (
-            "Fetch from server"
+            <>
+              <ModelListEditor
+                models={customModels}
+                disabled={disabled}
+                onBrowse={() => setIsBrowsing(true)}
+                onChange={onCustomModelsChange}
+              />
+            </>
           )}
-        </Button>
-      </FormField>
+        </FormField>
+      ) : null}
     </div>
   );
 }

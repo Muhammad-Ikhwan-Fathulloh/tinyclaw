@@ -9,6 +9,7 @@ interface ModelListEditorProps {
   models: ModelListRow[];
   disabled?: boolean;
   showPricing?: boolean;
+  onBrowse?: () => void;
   onChange: (models: ModelListRow[]) => void;
 }
 
@@ -20,6 +21,7 @@ export function ModelListEditor({
   models,
   disabled,
   showPricing = true,
+  onBrowse,
   onChange,
 }: ModelListEditorProps) {
   const updateRow = (index: number, patch: Partial<ModelListRow>) => {
@@ -138,7 +140,7 @@ export function ModelListEditor({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
           type="button"
           size="sm"
@@ -149,6 +151,18 @@ export function ModelListEditor({
           <PlusIcon className="mr-1 size-4" />
           Add model
         </Button>
+
+        {onBrowse ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={disabled}
+            onClick={onBrowse}
+          >
+            Browse models.dev
+          </Button>
+        ) : null}
       </div>
 
       {showPricing ? (

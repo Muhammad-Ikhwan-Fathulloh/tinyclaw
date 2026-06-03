@@ -1019,6 +1019,19 @@ function ConnectedProviderSection({
   );
   const [dialogBusy, setDialogBusy] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setManageModels(
+      (models.customModels ?? []).map((model) => ({
+        id: model.id,
+        name: model.name ?? model.id,
+        default: model.default,
+        inputPerMillionUsd: model.inputPerMillionUsd,
+        outputPerMillionUsd: model.outputPerMillionUsd,
+      })),
+    );
+  }, [models.customModels]);
+
   const currentModelName =
     configuredModels.find((model) => model.id === models.currentModel)?.name ??
     models.currentModel;
@@ -1218,7 +1231,7 @@ function ConnectedProviderSection({
 
       {isCompatible ? (
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="w-[min(96vw,56rem)] sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Edit provider</DialogTitle>
             </DialogHeader>
@@ -1233,7 +1246,7 @@ function ConnectedProviderSection({
               modelsError={null}
               onDisplayNameChange={setEditDisplayName}
               onBaseUrlChange={setEditBaseUrl}
-              onCustomModelsChange={() => {}}
+              onCustomModelsChange={setManageModels}
             />
             {dialogError ? (
               <p className="text-sm text-destructive" role="alert">
@@ -1248,6 +1261,7 @@ function ConnectedProviderSection({
                   void saveCompatibleConfig({
                     displayName: editDisplayName,
                     baseUrl: editBaseUrl,
+                    customModels: toCustomModelEntries(manageModels),
                   })
                 }
               >
@@ -1260,7 +1274,7 @@ function ConnectedProviderSection({
 
       {isCompatible ? (
         <Dialog open={manageOpen} onOpenChange={setManageOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="w-[min(96vw,56rem)] sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Manage models</DialogTitle>
             </DialogHeader>
