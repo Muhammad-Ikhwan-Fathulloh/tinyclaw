@@ -2867,6 +2867,29 @@
           }
         ]
       },
+      "CustomModelEntry": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "inputPerMillionUsd": {
+            "type": "number"
+          },
+          "outputPerMillionUsd": {
+            "type": "number"
+          }
+        }
+      },
       "ProviderModelOption": {
         "type": "object",
         "required": [
@@ -2887,11 +2910,18 @@
               "openai",
               "anthropic",
               "openrouter",
-              "gemini"
+              "gemini",
+              "openai_compatible"
             ]
           },
           "default": {
             "type": "boolean"
+          },
+          "inputPerMillionUsd": {
+            "type": "number"
+          },
+          "outputPerMillionUsd": {
+            "type": "number"
           }
         }
       },
@@ -2901,6 +2931,7 @@
           "provider",
           "currentModel",
           "defaultModel",
+          "displayName",
           "models"
         ],
         "properties": {
@@ -2914,6 +2945,7 @@
               "anthropic",
               "openrouter",
               "gemini",
+              "openai_compatible",
               null
             ]
           },
@@ -2924,6 +2956,12 @@
             ]
           },
           "defaultModel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayName": {
             "type": [
               "string",
               "null"
@@ -2961,7 +2999,8 @@
               "openai",
               "anthropic",
               "openrouter",
-              "gemini"
+              "gemini",
+              "openai_compatible"
             ]
           },
           "currentModel": {
@@ -2988,8 +3027,21 @@
               "openai",
               "anthropic",
               "openrouter",
-              "gemini"
+              "gemini",
+              "openai_compatible"
             ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "customModels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomModelEntry"
+            }
           }
         }
       },
@@ -2997,7 +3049,8 @@
         "type": "object",
         "required": [
           "provider",
-          "currentModel"
+          "currentModel",
+          "displayName"
         ],
         "properties": {
           "provider": {
@@ -3006,11 +3059,18 @@
               "openai",
               "anthropic",
               "openrouter",
-              "gemini"
+              "gemini",
+              "openai_compatible"
             ]
           },
           "currentModel": {
             "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -3617,12 +3677,119 @@
           }
         }
       },
+      "TelegramWorkerStatus": {
+        "type": "object",
+        "required": [
+          "ok",
+          "configured",
+          "paired",
+          "running"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "paired": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LlmUsageStats": {
+        "type": "object",
+        "required": [
+          "requestCount",
+          "inputTokens",
+          "outputTokens",
+          "totalTokens",
+          "estimatedCostUsd",
+          "trackedSince"
+        ],
+        "properties": {
+          "requestCount": {
+            "type": "integer"
+          },
+          "inputTokens": {
+            "type": "integer"
+          },
+          "outputTokens": {
+            "type": "integer"
+          },
+          "totalTokens": {
+            "type": "integer"
+          },
+          "estimatedCostUsd": {
+            "type": "number"
+          },
+          "trackedSince": {
+            "type": "string"
+          }
+        }
+      },
+      "LlmUsageStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LlmUsageStats"
+          },
+          {
+            "type": "object",
+            "required": [
+              "provider",
+              "currentModel",
+              "providerConfigured",
+              "displayName",
+              "costEstimated"
+            ],
+            "properties": {
+              "provider": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "openai",
+                  "anthropic",
+                  "openrouter",
+                  "gemini",
+                  "openai_compatible",
+                  null
+                ]
+              },
+              "currentModel": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "providerConfigured": {
+                "type": "boolean"
+              },
+              "displayName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "costEstimated": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
       "SystemStatusResponse": {
         "type": "object",
         "required": [
           "server",
           "automationWorker",
           "taskWorker",
+          "telegramWorker",
+          "llmUsage",
           "checkedAt"
         ],
         "properties": {
@@ -3634,6 +3801,12 @@
           },
           "taskWorker": {
             "$ref": "#/components/schemas/TaskWorkerStatus"
+          },
+          "telegramWorker": {
+            "$ref": "#/components/schemas/TelegramWorkerStatus"
+          },
+          "llmUsage": {
+            "$ref": "#/components/schemas/LlmUsageStatus"
           },
           "checkedAt": {
             "type": "string"

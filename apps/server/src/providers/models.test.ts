@@ -34,4 +34,14 @@ describe("resolveModel", () => {
     expect(resolveModel("gemini", "gemini-2.5-pro")).toBe("gemini-2.5-pro");
     expect(getDefaultModel("gemini")).toBe("gemini-2.5-flash");
   });
+
+  test("resolves compatible models from custom list", () => {
+    const customModels = [{ id: "llama3.2", default: true }];
+    expect(resolveModel("openai_compatible", "llama3.2", customModels)).toBe(
+      "llama3.2",
+    );
+    expect(resolveModel("openai_compatible", undefined, customModels)).toBe(
+      "llama3.2",
+    );
+  });
 });

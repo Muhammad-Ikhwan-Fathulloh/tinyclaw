@@ -63,6 +63,13 @@ export interface TaskWorkerStatus {
   providerConfigured: boolean;
 }
 
+export interface TelegramWorkerStatus {
+  ok: boolean;
+  configured: boolean;
+  paired: boolean;
+  running: boolean;
+}
+
 export interface LlmUsageStats {
   requestCount: number;
   inputTokens: number;
@@ -73,15 +80,18 @@ export interface LlmUsageStats {
 }
 
 export interface LlmUsageStatus extends LlmUsageStats {
-  provider: "openai" | "anthropic" | "openrouter" | "gemini" | null;
+  provider: ProviderName | null;
   currentModel: string | null;
   providerConfigured: boolean;
+  displayName: string | null;
+  costEstimated: boolean;
 }
 
 export interface SystemStatusResponse {
   server: HealthResponse;
   automationWorker: AutomationWorkerStatus;
   taskWorker: TaskWorkerStatus;
+  telegramWorker: TelegramWorkerStatus;
   llmUsage: LlmUsageStatus;
   checkedAt: string;
 }
@@ -365,18 +375,36 @@ export interface ApiErrorResponse {
   error: string;
 }
 
+export interface CustomModelEntry {
+  id: string;
+  name?: string;
+  default?: boolean;
+  inputPerMillionUsd?: number;
+  outputPerMillionUsd?: number;
+}
+
 export interface ProviderModelOption {
   id: string;
   name: string;
-  provider: "openai" | "anthropic" | "openrouter" | "gemini";
+  provider: ProviderName;
   default?: boolean;
+  inputPerMillionUsd?: number;
+  outputPerMillionUsd?: number;
 }
 
 export interface ModelsResponse {
-  provider: "openai" | "anthropic" | "openrouter" | "gemini" | null;
+  provider: ProviderName | null;
   currentModel: string | null;
   defaultModel: string | null;
+  displayName: string | null;
+  baseUrl?: string | null;
+  customModels?: CustomModelEntry[];
   models: ProviderModelOption[];
+}
+
+export interface DiscoverModelsRequest {
+  baseUrl: string;
+  apiKey?: string;
 }
 
 export interface SetModelRequest {
@@ -384,19 +412,23 @@ export interface SetModelRequest {
 }
 
 export interface SetModelResponse {
-  provider: "openai" | "anthropic" | "openrouter" | "gemini";
+  provider: ProviderName;
   currentModel: string;
 }
 
 export interface ConfigureProviderRequest {
   apiKey: string;
-  provider: "openai" | "anthropic" | "openrouter" | "gemini";
+  provider: ProviderName;
   model?: string;
+  displayName?: string;
+  baseUrl?: string;
+  customModels?: CustomModelEntry[];
 }
 
 export interface ConfigureProviderResponse {
-  provider: "openai" | "anthropic" | "openrouter" | "gemini";
+  provider: ProviderName;
   currentModel: string;
+  displayName: string | null;
 }
 
 export interface ProfileSummary {
@@ -519,7 +551,12 @@ export interface InitUserContextResponse {
   created: boolean;
 }
 
-export type ProviderName = "openai" | "anthropic" | "openrouter" | "gemini";
+export type ProviderName =
+  | "openai"
+  | "anthropic"
+  | "openrouter"
+  | "gemini"
+  | "openai_compatible";
 
 export type GenerateTextFormat = "json" | "text";
 

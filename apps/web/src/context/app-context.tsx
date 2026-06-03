@@ -1,4 +1,7 @@
-import type { ConfigureProviderResponse } from "@tinyclaw/core/contract";
+import type {
+  ConfigureProviderRequest,
+  ConfigureProviderResponse,
+} from "@tinyclaw/core/contract";
 import {
   createContext,
   useCallback,
@@ -21,9 +24,7 @@ interface AppContextValue {
   error: string | null;
   setModel: (modelId: string) => Promise<void>;
   configureProvider: (
-    apiKey: string,
-    model: string | undefined,
-    provider: ConfigureProviderResponse["provider"],
+    request: ConfigureProviderRequest,
   ) => Promise<ConfigureProviderResponse>;
 }
 
@@ -44,12 +45,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const configureProvider = useCallback(
-    async (
-      apiKey: string,
-      model: string | undefined,
-      provider: ConfigureProviderResponse["provider"],
-    ) => {
-      return configureProviderMutation.mutateAsync({ apiKey, model, provider });
+    async (request: ConfigureProviderRequest) => {
+      return configureProviderMutation.mutateAsync(request);
     },
     [configureProviderMutation],
   );

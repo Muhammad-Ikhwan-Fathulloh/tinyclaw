@@ -222,26 +222,43 @@ export const openApiSchemas = {
       },
     ],
   },
+  CustomModelEntry: {
+    type: "object",
+    required: ["id"],
+    properties: {
+      id: { type: "string" },
+      name: { type: "string" },
+      default: { type: "boolean" },
+      inputPerMillionUsd: { type: "number" },
+      outputPerMillionUsd: { type: "number" },
+    },
+  },
   ProviderModelOption: {
     type: "object",
     required: ["id", "name", "provider"],
     properties: {
       id: { type: "string" },
       name: { type: "string" },
-      provider: { type: "string", enum: ["openai", "anthropic", "openrouter", "gemini"] },
+      provider: {
+        type: "string",
+        enum: ["openai", "anthropic", "openrouter", "gemini", "openai_compatible"],
+      },
       default: { type: "boolean" },
+      inputPerMillionUsd: { type: "number" },
+      outputPerMillionUsd: { type: "number" },
     },
   },
   ModelsResponse: {
     type: "object",
-    required: ["provider", "currentModel", "defaultModel", "models"],
+    required: ["provider", "currentModel", "defaultModel", "displayName", "models"],
     properties: {
       provider: {
         type: ["string", "null"],
-        enum: ["openai", "anthropic", "openrouter", "gemini", null],
+        enum: ["openai", "anthropic", "openrouter", "gemini", "openai_compatible", null],
       },
       currentModel: { type: ["string", "null"] },
       defaultModel: { type: ["string", "null"] },
+      displayName: { type: ["string", "null"] },
       models: {
         type: "array",
         items: { $ref: "#/components/schemas/ProviderModelOption" },
@@ -259,7 +276,10 @@ export const openApiSchemas = {
     type: "object",
     required: ["provider", "currentModel"],
     properties: {
-      provider: { type: "string", enum: ["openai", "anthropic", "openrouter", "gemini"] },
+      provider: {
+        type: "string",
+        enum: ["openai", "anthropic", "openrouter", "gemini", "openai_compatible"],
+      },
       currentModel: { type: "string" },
     },
   },
@@ -269,15 +289,28 @@ export const openApiSchemas = {
     properties: {
       apiKey: { type: "string" },
       model: { type: "string" },
-      provider: { type: "string", enum: ["openai", "anthropic", "openrouter", "gemini"] },
+      provider: {
+        type: "string",
+        enum: ["openai", "anthropic", "openrouter", "gemini", "openai_compatible"],
+      },
+      displayName: { type: "string" },
+      baseUrl: { type: "string" },
+      customModels: {
+        type: "array",
+        items: { $ref: "#/components/schemas/CustomModelEntry" },
+      },
     },
   },
   ConfigureProviderResponse: {
     type: "object",
-    required: ["provider", "currentModel"],
+    required: ["provider", "currentModel", "displayName"],
     properties: {
-      provider: { type: "string", enum: ["openai", "anthropic", "openrouter", "gemini"] },
+      provider: {
+        type: "string",
+        enum: ["openai", "anthropic", "openrouter", "gemini", "openai_compatible"],
+      },
       currentModel: { type: "string" },
+      displayName: { type: ["string", "null"] },
     },
   },
   ToolSummary: {
@@ -595,6 +628,16 @@ export const openApiSchemas = {
       providerConfigured: { type: "boolean" },
     },
   },
+  TelegramWorkerStatus: {
+    type: "object",
+    required: ["ok", "configured", "paired", "running"],
+    properties: {
+      ok: { type: "boolean" },
+      configured: { type: "boolean" },
+      paired: { type: "boolean" },
+      running: { type: "boolean" },
+    },
+  },
   LlmUsageStats: {
     type: "object",
     required: [
@@ -619,25 +662,41 @@ export const openApiSchemas = {
       { $ref: "#/components/schemas/LlmUsageStats" },
       {
         type: "object",
-        required: ["provider", "currentModel", "providerConfigured"],
+        required: [
+          "provider",
+          "currentModel",
+          "providerConfigured",
+          "displayName",
+          "costEstimated",
+        ],
         properties: {
           provider: {
             type: ["string", "null"],
-            enum: ["openai", "anthropic", "openrouter", "gemini", null],
+            enum: ["openai", "anthropic", "openrouter", "gemini", "openai_compatible", null],
           },
           currentModel: { type: ["string", "null"] },
           providerConfigured: { type: "boolean" },
+          displayName: { type: ["string", "null"] },
+          costEstimated: { type: "boolean" },
         },
       },
     ],
   },
   SystemStatusResponse: {
     type: "object",
-    required: ["server", "automationWorker", "taskWorker", "llmUsage", "checkedAt"],
+    required: [
+      "server",
+      "automationWorker",
+      "taskWorker",
+      "telegramWorker",
+      "llmUsage",
+      "checkedAt",
+    ],
     properties: {
       server: { $ref: "#/components/schemas/HealthResponse" },
       automationWorker: { $ref: "#/components/schemas/AutomationWorkerStatus" },
       taskWorker: { $ref: "#/components/schemas/TaskWorkerStatus" },
+      telegramWorker: { $ref: "#/components/schemas/TelegramWorkerStatus" },
       llmUsage: { $ref: "#/components/schemas/LlmUsageStatus" },
       checkedAt: { type: "string" },
     },

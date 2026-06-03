@@ -1,12 +1,15 @@
 import { readEnvValue } from "./config";
 
-export type UserProviderName = "openai" | "anthropic" | "openrouter" | "gemini";
+import type { ProviderName } from "./contract";
+
+export type UserProviderName = ProviderName;
 
 export const USER_PROVIDER_NAMES: readonly UserProviderName[] = [
   "openai",
   "anthropic",
   "openrouter",
   "gemini",
+  "openai_compatible",
 ] as const;
 
 export function parseProviderName(value: string | undefined): UserProviderName | null {
@@ -16,7 +19,8 @@ export function parseProviderName(value: string | undefined): UserProviderName |
     normalized === "openai" ||
     normalized === "anthropic" ||
     normalized === "openrouter" ||
-    normalized === "gemini"
+    normalized === "gemini" ||
+    normalized === "openai_compatible"
   ) {
     return normalized;
   }
@@ -34,6 +38,8 @@ export function apiKeyEnvVarForProvider(provider: UserProviderName): string {
       return "GEMINI_API_KEY";
     case "openrouter":
       return "OPENROUTER_API_KEY";
+    case "openai_compatible":
+      return "OPENAI_COMPATIBLE_API_KEY";
   }
 }
 

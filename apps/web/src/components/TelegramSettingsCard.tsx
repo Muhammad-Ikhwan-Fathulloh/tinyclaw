@@ -181,9 +181,9 @@ export function TelegramSettingsCard({
             className={cn(
               "shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium",
               isPaired
-                ? "border-emerald-800/60 bg-emerald-950/40 text-emerald-200"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200"
                 : configured
-                  ? "border-amber-800/50 bg-amber-950/30 text-amber-100"
+                  ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100"
                   : "border-border bg-muted text-muted-foreground",
             )}
           >

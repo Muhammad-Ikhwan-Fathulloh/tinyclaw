@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
+import { CustomCompatibleProviderFields } from "@/components/CustomCompatibleProviderFields";
 import { useProviderSetupForm } from "@/hooks/use-provider-setup-form";
 import {
   apiKeyPlaceholder,
@@ -58,9 +59,26 @@ export function ProviderSetupForm({
         onSelect={form.handleProviderSelect}
       />
 
+      {form.selectedProvider === "openai_compatible" ? (
+        <CustomCompatibleProviderFields
+          displayName={form.displayName}
+          baseUrl={form.baseUrl}
+          apiKey={form.apiKey}
+          customModels={form.customModels}
+          disabled={form.busy}
+          density={density}
+          displayNameError={form.displayNameError}
+          baseUrlError={form.baseUrlError}
+          modelsError={form.modelsError}
+          onDisplayNameChange={form.setDisplayName}
+          onBaseUrlChange={form.setBaseUrl}
+          onCustomModelsChange={form.setCustomModels}
+        />
+      ) : null}
+
       <FormField
         id="api-key"
-        label="API key"
+        label={form.selectedProvider === "openai_compatible" ? "API key (optional)" : "API key"}
         density={density}
         footer={
           form.apiKeyError ? (
@@ -168,7 +186,13 @@ export function ProviderSetupForm({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={form.busy || !form.apiKey.trim()}>
+        <Button
+          type="submit"
+          disabled={
+            form.busy ||
+            (form.selectedProvider !== "openai_compatible" && !form.apiKey.trim())
+          }
+        >
           {form.busy ? (
             <>
               <Spinner className="mr-2" />

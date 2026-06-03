@@ -36,6 +36,9 @@ export async function ensureProviderConfiguredViaCli(
       apiKey: config.apiKey,
       model: config.model,
       provider: config.provider,
+      displayName: config.displayName,
+      baseUrl: config.baseUrl,
+      customModels: config.customModels,
     });
 
     console.log(

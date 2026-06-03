@@ -53,16 +53,26 @@ import {
 import { useSaveUserTimezone, useUserTimezone } from "@/hooks/use-timezones";
 import { formatError } from "@/lib/client";
 import {
+  CustomCompatibleProviderFields,
+  toCustomModelEntries,
+} from "@/components/CustomCompatibleProviderFields";
+import type { ModelListRow } from "@/components/ModelListEditor";
+import {
   apiKeyPlaceholder,
+  buildConfigureProviderRequest,
   defaultModelForProvider,
   filterModelsByProvider,
   formatProviderLabel,
   getModelDisplayName,
+  modelsFromCustomRows,
   PROVIDER_OPTIONS,
   type SelectedProvider,
   resolveModelForProvider,
   validateApiKeyForProvider,
+  validateBaseUrlInput,
+  validateCustomModelsInput,
   validateCustomOpenRouterModel,
+  validateDisplayNameInput,
 } from "@/lib/models";
 import { getBrowserTimezone } from "@/lib/timezones";
 export function SettingsPage() {
@@ -100,15 +110,12 @@ export function SettingsPage() {
   }, [catalogQueryError]);
 
   useEffect(() => {
-    if (
-      models?.provider === "openai" ||
-      models?.provider === "anthropic" ||
-      models?.provider === "openrouter" ||
-      models?.provider === "gemini"
-    ) {
+    if (models?.provider) {
       setModelDraft(models.currentModel ?? "");
     }
   }, [models?.provider, models?.currentModel]);
+
+  const isCompatibleProvider = models?.provider === "openai_compatible";
 
   useEffect(() => {
     if (isConfigured) {
@@ -134,8 +141,10 @@ export function SettingsPage() {
       return;
     }
 
-    setApiKeyError(validateApiKeyForProvider(apiKey));
-  }, [apiKey]);
+    setApiKeyError(
+      validateApiKeyForProvider(apiKey, models?.provider as SelectedProvider),
+    );
+  }, [apiKey, models?.provider]);
 
   const handleApiKeyChange = useCallback(
     (value: string) => {
@@ -147,12 +156,14 @@ export function SettingsPage() {
       }
 
       if (apiKeyTouched && value.trim()) {
-        setApiKeyError(validateApiKeyForProvider(value));
+        setApiKeyError(
+          validateApiKeyForProvider(value, models?.provider as SelectedProvider),
+        );
       } else if (apiKeyError) {
         setApiKeyError(null);
       }
     },
-    [apiKeyTouched, apiKeyError, formError],
+    [apiKeyTouched, apiKeyError, formError, models?.provider],
   );
 
   const handleSubmitReplaceKey = useCallback(
@@ -160,7 +171,10 @@ export function SettingsPage() {
       event.preventDefault();
 
       const trimmedKey = apiKey.trim();
-      const nextApiKeyError = validateApiKeyForProvider(trimmedKey);
+      const nextApiKeyError = validateApiKeyForProvider(
+        trimmedKey,
+        models!.provider as SelectedProvider,
+      );
 
       setApiKeyTouched(true);
       setApiKeyError(nextApiKeyError);
@@ -179,9 +193,14 @@ export function SettingsPage() {
 
       try {
         await configureProvider(
-          trimmedKey,
-          modelToSave || undefined,
-          models!.provider as SelectedProvider,
+          buildConfigureProviderRequest({
+            apiKey: trimmedKey,
+            provider: models!.provider as SelectedProvider,
+            model: modelToSave || undefined,
+            displayName: models?.displayName ?? undefined,
+            baseUrl: models?.baseUrl ?? undefined,
+            customModels: models?.customModels,
+          }),
         );
         setApiKey("");
         setApiKeyTouched(false);
@@ -350,7 +369,11 @@ export function SettingsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-foreground">Extended thinking</p>
-              {thinkingHint ? (
+              {isCompatibleProvider ? (
+                <p className="text-xs text-muted-foreground">
+                  Not supported for custom providers
+                </p>
+              ) : thinkingHint ? (
                 <p className="text-xs text-emerald-200" role="status">
                   {thinkingHint}
                 </p>
@@ -364,7 +387,7 @@ export function SettingsPage() {
               <Switch
                 id="thinking-enabled"
                 checked={thinkingEnabled}
-                disabled={saveThinkingMutation.isPending}
+                disabled={isCompatibleProvider || saveThinkingMutation.isPending}
                 aria-label="Enable thinking in chat"
                 onCheckedChange={(enabled) => {
                   setThinkingEnabled(enabled);
@@ -373,7 +396,9 @@ export function SettingsPage() {
               />
               <Select
                 value={thinkingEffort}
-                disabled={!thinkingEnabled || saveThinkingMutation.isPending}
+                disabled={
+                  isCompatibleProvider || !thinkingEnabled || saveThinkingMutation.isPending
+                }
                 onValueChange={(value) => {
                   if (isThinkingEffort(value)) {
                     setThinkingEffort(value);
@@ -393,7 +418,7 @@ export function SettingsPage() {
               <Button
                 type="button"
                 size="sm"
-                disabled={saveThinkingMutation.isPending}
+                disabled={isCompatibleProvider || saveThinkingMutation.isPending}
                 onClick={handleSaveThinking}
               >
                 {saveThinkingMutation.isPending ? (
@@ -436,6 +461,7 @@ export function SettingsPage() {
           ) : (
             <ConnectedProviderSection
               models={models}
+              configureProvider={configureProvider}
               configuredModels={configuredModels}
               modelDraft={modelDraft}
               modelBusy={modelBusy}
@@ -482,7 +508,8 @@ export function SettingsPage() {
           <CardHeader className="border-b border-border pb-3">
             <CardTitle>Switch provider</CardTitle>
             <CardDescription>
-              Currently on {formatProviderLabel(models.provider)}. Chat history resets when you
+              Currently on {formatProviderLabel(models.provider, models.displayName)}. Chat
+              history resets when you
               change providers.
             </CardDescription>
           </CardHeader>
@@ -543,6 +570,12 @@ function SwitchProviderSection({
   const [selectedModel, setSelectedModel] = useState("");
   const [customModel, setCustomModel] = useState("");
   const [customModelError, setCustomModelError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [customModels, setCustomModels] = useState<ModelListRow[]>([{ id: "", name: "" }]);
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null);
+  const [baseUrlError, setBaseUrlError] = useState<string | null>(null);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -554,10 +587,13 @@ function SwitchProviderSection({
     );
   }, [currentProvider]);
 
-  const targetModels = useMemo(
-    () => filterModelsByProvider(catalog, targetProvider),
-    [catalog, targetProvider],
-  );
+  const targetModels = useMemo(() => {
+    if (targetProvider === "openai_compatible") {
+      return modelsFromCustomRows(customModels);
+    }
+
+    return filterModelsByProvider(catalog, targetProvider);
+  }, [catalog, targetProvider, customModels]);
 
   useEffect(() => {
     if (targetModels.length === 0) {
@@ -577,13 +613,22 @@ function SwitchProviderSection({
     event.preventDefault();
 
     const trimmedKey = apiKey.trim();
-    const nextApiKeyError = validateApiKeyForProvider(trimmedKey);
+    const nextApiKeyError = validateApiKeyForProvider(trimmedKey, targetProvider);
     const nextCustomModelError =
       targetProvider === "openrouter" ? validateCustomOpenRouterModel(customModel) : null;
+    const nextDisplayNameError =
+      targetProvider === "openai_compatible" ? validateDisplayNameInput(displayName) : null;
+    const nextBaseUrlError =
+      targetProvider === "openai_compatible" ? validateBaseUrlInput(baseUrl) : null;
+    const nextModelsError =
+      targetProvider === "openai_compatible" ? validateCustomModelsInput(customModels) : null;
 
     setApiKeyTouched(true);
     setApiKeyError(nextApiKeyError);
     setCustomModelError(nextCustomModelError);
+    setDisplayNameError(nextDisplayNameError);
+    setBaseUrlError(nextBaseUrlError);
+    setModelsError(nextModelsError);
     setLocalError(null);
 
     if (nextApiKeyError) {
@@ -593,6 +638,10 @@ function SwitchProviderSection({
 
     if (nextCustomModelError) {
       document.getElementById("switch-custom-model")?.focus();
+      return;
+    }
+
+    if (nextDisplayNameError || nextBaseUrlError || nextModelsError) {
       return;
     }
 
@@ -606,16 +655,24 @@ function SwitchProviderSection({
 
     try {
       const result = await configureProvider(
-        trimmedKey,
-        modelToSave || undefined,
-        targetProvider,
+        buildConfigureProviderRequest({
+          apiKey: trimmedKey,
+          provider: targetProvider,
+          model: modelToSave || undefined,
+          displayName,
+          baseUrl,
+          customModels:
+            targetProvider === "openai_compatible"
+              ? toCustomModelEntries(customModels)
+              : undefined,
+        }),
       );
       setApiKey("");
       setApiKeyTouched(false);
       setShowApiKey(false);
       setCustomModel("");
       onSuccess(
-        `Switched to ${formatProviderLabel(result.provider)} with ${getModelDisplayName(catalog, result.currentModel)}.`,
+        `Switched to ${formatProviderLabel(result.provider, result.displayName)} with ${getModelDisplayName(catalog, result.currentModel)}.`,
       );
     } catch (err) {
       setLocalError(formatError(err));
@@ -641,7 +698,7 @@ function SwitchProviderSection({
               setCustomModelError(null);
             }
             if (apiKeyTouched && apiKey.trim()) {
-              setApiKeyError(validateApiKeyForProvider(apiKey));
+              setApiKeyError(validateApiKeyForProvider(apiKey, provider));
             }
           }}
         />
@@ -695,14 +752,14 @@ function SwitchProviderSection({
                 setApiKeyError(null);
                 return;
               }
-              setApiKeyError(validateApiKeyForProvider(apiKey));
+              setApiKeyError(validateApiKeyForProvider(apiKey, targetProvider));
             }}
             onChange={(event) => {
               const value = event.target.value;
               setApiKey(value);
               setLocalError(null);
               if (apiKeyTouched && value.trim()) {
-                setApiKeyError(validateApiKeyForProvider(value));
+                setApiKeyError(validateApiKeyForProvider(value, targetProvider));
               } else if (apiKeyError) {
                 setApiKeyError(null);
               }
@@ -763,13 +820,34 @@ function SwitchProviderSection({
         </FormField>
       ) : null}
 
+      {targetProvider === "openai_compatible" ? (
+        <CustomCompatibleProviderFields
+          displayName={displayName}
+          baseUrl={baseUrl}
+          apiKey={apiKey}
+          customModels={customModels}
+          disabled={busy}
+          density="compact"
+          displayNameError={displayNameError}
+          baseUrlError={baseUrlError}
+          modelsError={modelsError}
+          onDisplayNameChange={setDisplayName}
+          onBaseUrlChange={setBaseUrl}
+          onCustomModelsChange={setCustomModels}
+        />
+      ) : null}
+
       {localError ? (
         <p className="text-sm text-destructive" role="alert">
           {localError}
         </p>
       ) : null}
 
-      <Button type="submit" size="sm" disabled={busy || !apiKey.trim()}>
+      <Button
+        type="submit"
+        size="sm"
+        disabled={busy || (targetProvider !== "openai_compatible" && !apiKey.trim())}
+      >
         {busy ? (
           <>
             <Spinner className="mr-2" />
@@ -807,6 +885,7 @@ function SettingsRow({
 
 function ConnectedProviderSection({
   models,
+  configureProvider,
   configuredModels,
   modelDraft,
   modelBusy,
@@ -828,6 +907,7 @@ function ConnectedProviderSection({
   onSubmitReplaceKey,
 }: {
   models: NonNullable<ReturnType<typeof useAppContext>["models"]>;
+  configureProvider: ReturnType<typeof useAppContext>["configureProvider"];
   configuredModels: ProviderModelOption[];
   modelDraft: string;
   modelBusy: boolean;
@@ -849,9 +929,53 @@ function ConnectedProviderSection({
   onSubmitReplaceKey: (event: React.FormEvent) => void;
 }) {
   const currentProvider = models.provider as SelectedProvider;
+  const isCompatible = currentProvider === "openai_compatible";
+  const [editOpen, setEditOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState(models.displayName ?? "");
+  const [editBaseUrl, setEditBaseUrl] = useState(models.baseUrl ?? "");
+  const [manageModels, setManageModels] = useState<ModelListRow[]>(
+    (models.customModels ?? []).map((model) => ({
+      id: model.id,
+      name: model.name ?? model.id,
+      default: model.default,
+      inputPerMillionUsd: model.inputPerMillionUsd,
+      outputPerMillionUsd: model.outputPerMillionUsd,
+    })),
+  );
+  const [dialogBusy, setDialogBusy] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const currentModelName =
     configuredModels.find((model) => model.id === models.currentModel)?.name ??
     models.currentModel;
+
+  const saveCompatibleConfig = async (patch: {
+    displayName?: string;
+    baseUrl?: string;
+    customModels?: ReturnType<typeof toCustomModelEntries>;
+  }) => {
+    setDialogBusy(true);
+    setDialogError(null);
+
+    try {
+      await configureProvider(
+        buildConfigureProviderRequest({
+          apiKey: "",
+          provider: "openai_compatible",
+          model: models.currentModel ?? undefined,
+          displayName: patch.displayName ?? models.displayName ?? "",
+          baseUrl: patch.baseUrl ?? models.baseUrl ?? "",
+          customModels: patch.customModels ?? models.customModels,
+        }),
+      );
+      setEditOpen(false);
+      setManageOpen(false);
+    } catch (error) {
+      setDialogError(formatError(error));
+    } finally {
+      setDialogBusy(false);
+    }
+  };
 
   return (
     <div className="divide-y divide-border">
@@ -859,10 +983,29 @@ function ConnectedProviderSection({
         <div className="min-w-0 space-y-0.5">
           <p className="text-sm font-medium text-foreground">Provider</p>
           <p className="text-xs text-muted-foreground">
-            {formatProviderLabel(currentProvider)} · {currentModelName}
+            {formatProviderLabel(currentProvider, models.displayName)} · {currentModelName}
           </p>
         </div>
       </div>
+
+      {isCompatible ? (
+        <SettingsRow label="Endpoint" description={models.baseUrl ?? "—"}>
+          <Button type="button" size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+            Edit
+          </Button>
+        </SettingsRow>
+      ) : null}
+
+      {isCompatible ? (
+        <SettingsRow
+          label="Models"
+          description={`${models.customModels?.length ?? 0} models configured`}
+        >
+          <Button type="button" size="sm" variant="outline" onClick={() => setManageOpen(true)}>
+            Manage
+          </Button>
+        </SettingsRow>
+      ) : null}
 
       <SettingsRow
         label="Model"
@@ -929,10 +1072,14 @@ function ConnectedProviderSection({
         <DialogContent className="sm:max-w-md">
           <form className="space-y-4" onSubmit={onSubmitReplaceKey}>
             <DialogHeader>
-              <DialogTitle>Replace API key</DialogTitle>
+              <DialogTitle>
+                Replace API key
+                {isCompatible && models.displayName ? ` for ${models.displayName}` : ""}
+              </DialogTitle>
               <DialogDescription>
-                Paste a new key from your {formatProviderLabel(currentProvider)} dashboard. The
-                current model stays the same.
+                Paste a new key from your{" "}
+                {formatProviderLabel(currentProvider, models.displayName)} dashboard. The current
+                model stays the same.
               </DialogDescription>
             </DialogHeader>
 
@@ -994,6 +1141,89 @@ function ConnectedProviderSection({
           </form>
         </DialogContent>
       </Dialog>
+
+      {isCompatible ? (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit provider</DialogTitle>
+            </DialogHeader>
+            <CustomCompatibleProviderFields
+              displayName={editDisplayName}
+              baseUrl={editBaseUrl}
+              apiKey=""
+              customModels={manageModels}
+              disabled={dialogBusy}
+              displayNameError={null}
+              baseUrlError={null}
+              modelsError={null}
+              onDisplayNameChange={setEditDisplayName}
+              onBaseUrlChange={setEditBaseUrl}
+              onCustomModelsChange={() => {}}
+            />
+            {dialogError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {dialogError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                disabled={dialogBusy}
+                onClick={() =>
+                  void saveCompatibleConfig({
+                    displayName: editDisplayName,
+                    baseUrl: editBaseUrl,
+                  })
+                }
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      {isCompatible ? (
+        <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Manage models</DialogTitle>
+            </DialogHeader>
+            <CustomCompatibleProviderFields
+              displayName={models.displayName ?? ""}
+              baseUrl={models.baseUrl ?? ""}
+              apiKey=""
+              customModels={manageModels}
+              disabled={dialogBusy}
+              displayNameError={null}
+              baseUrlError={null}
+              modelsError={null}
+              onDisplayNameChange={() => {}}
+              onBaseUrlChange={() => {}}
+              onCustomModelsChange={setManageModels}
+            />
+            {dialogError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {dialogError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                disabled={dialogBusy}
+                onClick={() =>
+                  void saveCompatibleConfig({
+                    customModels: toCustomModelEntries(manageModels),
+                  })
+                }
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

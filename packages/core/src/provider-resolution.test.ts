@@ -10,6 +10,7 @@ describe("parseProviderName", () => {
     expect(parseProviderName("openai")).toBe("openai");
     expect(parseProviderName("Anthropic")).toBe("anthropic");
     expect(parseProviderName(" GEMINI ")).toBe("gemini");
+    expect(parseProviderName("openai_compatible")).toBe("openai_compatible");
   });
 
   test("rejects unknown values", () => {
@@ -72,5 +73,8 @@ describe("apiKeyEnvVarForProvider", () => {
     expect(apiKeyEnvVarForProvider("anthropic")).toBe("ANTHROPIC_API_KEY");
     expect(apiKeyEnvVarForProvider("gemini")).toBe("GEMINI_API_KEY");
     expect(apiKeyEnvVarForProvider("openrouter")).toBe("OPENROUTER_API_KEY");
+    expect(apiKeyEnvVarForProvider("openai_compatible")).toBe(
+      "OPENAI_COMPATIBLE_API_KEY",
+    );
   });
 });

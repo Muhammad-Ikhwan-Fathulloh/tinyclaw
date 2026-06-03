@@ -1,3 +1,9 @@
+import {
+  isValidBaseUrl,
+  normalizeBaseUrl,
+  validateCustomModels,
+  validateDisplayName,
+} from "./compatible-provider-config";
 import type { ProviderModelOption } from "./contract";
 import {
   parseProviderName,
@@ -18,6 +24,7 @@ const PROVIDER_CHOICES: Array<{ id: UserProviderName; label: string }> = [
   { id: "anthropic", label: "Anthropic" },
   { id: "openrouter", label: "OpenRouter" },
   { id: "gemini", label: "Gemini" },
+  { id: "openai_compatible", label: "Custom (OpenAI-compatible)" },
 ];
 
 export async function promptForProviderConfig(
@@ -38,6 +45,10 @@ export async function promptForProviderConfig(
     if (!provider) {
       writeLine("Enter a provider number or name.\n");
       continue;
+    }
+
+    if (provider === "openai_compatible") {
+      return promptForCompatibleProviderConfig(question, writeLine);
     }
 
     const apiKey = (await question("API key: ")).trim();
@@ -117,4 +128,47 @@ function resolveModelChoice(
   }
 
   return options.getDefaultModel(provider);
+}
+
+async function promptForCompatibleProviderConfig(
+  question: (prompt: string) => Promise<string>,
+  writeLine: (line: string) => void,
+): Promise<UserProviderConfig> {
+  while (true) {
+    const displayName = validateDisplayName(await question("Provider name: "));
+    const baseUrlInput = (await question("Base URL: ")).trim();
+
+    if (!isValidBaseUrl(baseUrlInput)) {
+      writeLine("Enter a valid http(s) base URL.\n");
+      continue;
+    }
+
+    const baseUrl = normalizeBaseUrl(baseUrlInput);
+    const apiKey = (await question("API key (optional): ")).trim();
+    const modelIds = (await question("Model IDs (comma-separated): "))
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (modelIds.length === 0) {
+      writeLine("Enter at least one model id.\n");
+      continue;
+    }
+
+    const customModels = validateCustomModels(
+      modelIds.map((id, index) => ({
+        id,
+        ...(index === 0 ? { default: true } : {}),
+      })),
+    );
+
+    return {
+      provider: "openai_compatible",
+      apiKey,
+      displayName,
+      baseUrl,
+      customModels,
+      model: customModels.find((model) => model.default)?.id ?? customModels[0]!.id,
+    };
+  }
 }

@@ -8,6 +8,7 @@ import {
   type ProviderName,
 } from "@tinyclaw/core";
 import { resolveModel } from "./models";
+import { createOpenAICompatibleProvider } from "./openai-compatible";
 import { createOpenAIProvider } from "./openai";
 import { createOpenRouterProvider } from "./openrouter";
 import type { UserProviderConfig } from "@tinyclaw/core";
@@ -16,10 +17,15 @@ export interface CreateProviderOptions {
   provider: ProviderName;
   apiKey: string;
   model?: string;
+  userConfig?: UserProviderConfig | null;
 }
 
 function createProvider(options: CreateProviderOptions): ProviderClient {
-  const model = resolveModel(options.provider, options.model);
+  const model = resolveModel(
+    options.provider,
+    options.model,
+    options.userConfig?.customModels,
+  );
 
   switch (options.provider) {
     case "openai":
@@ -42,6 +48,21 @@ function createProvider(options: CreateProviderOptions): ProviderClient {
         apiKey: options.apiKey,
         model,
       });
+    case "openai_compatible": {
+      const baseUrl = options.userConfig?.baseUrl?.trim();
+      const displayName = options.userConfig?.displayName?.trim();
+
+      if (!baseUrl || !displayName) {
+        throw new Error("OpenAI-compatible provider requires baseUrl and displayName.");
+      }
+
+      return createOpenAICompatibleProvider({
+        apiKey: options.apiKey,
+        baseUrl,
+        model,
+        displayName,
+      });
+    }
   }
 }
 
@@ -79,5 +100,6 @@ export function createProviderFromSources(
     provider,
     apiKey,
     model: readEnvValue(env, "TINYCLAW_MODEL") ?? userConfig?.model,
+    userConfig,
   });
 }

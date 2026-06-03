@@ -1,6 +1,13 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+  normalizeBaseUrl,
+  parseCustomModelsJson,
+  serializeCustomModels,
+  validateDisplayName,
+} from "./compatible-provider-config";
 import type {
+  CustomModelEntry,
   ProviderChatOptions,
   ThinkingEffort,
   ThinkingSettings,
@@ -22,6 +29,9 @@ export interface UserProviderConfig {
   provider: UserProviderName;
   apiKey: string;
   model?: string;
+  displayName?: string;
+  baseUrl?: string;
+  customModels?: CustomModelEntry[];
   timezone?: string;
   thinkingEnabled?: boolean;
   thinkingEffort?: ThinkingEffort;
@@ -75,21 +85,28 @@ export async function loadUserConfig(): Promise<UserProviderConfig | null> {
   }
 
   const values = parseIni(raw);
-  const apiKey = values.api_key?.trim();
   const provider = parseProviderName(values.provider);
 
-  if (!apiKey || !provider) {
+  if (!provider) {
+    return null;
+  }
+
+  const apiKey = values.api_key ?? "";
+
+  if (!apiKey.trim() && provider !== "openai_compatible") {
     return null;
   }
 
   const model = values.model?.trim();
   const timezone = readTimezone(values);
   const thinking = readThinkingSettings(values);
+  const compatible = readCompatibleProviderFields(provider, values);
 
   return {
     provider,
     apiKey,
     ...(model ? { model } : {}),
+    ...compatible,
     ...(timezone ? { timezone } : {}),
     thinkingEnabled: thinking.enabled,
     thinkingEffort: thinking.effort,
@@ -199,6 +216,10 @@ export async function saveUserConfig(config: UserProviderConfig): Promise<void> 
     provider: config.provider,
     api_key: config.apiKey,
     model: config.model ?? "",
+    display_name: config.displayName,
+    base_url: config.baseUrl,
+    models_json:
+      config.customModels?.length ? serializeCustomModels(config.customModels) : undefined,
     timezone: config.timezone,
     thinking: thinking.enabled ? "on" : "off",
     thinking_effort: thinking.effort,
@@ -222,6 +243,18 @@ function buildConfigIniLines(values: Record<string, string | undefined>): string
 
   if (values.model !== undefined) {
     lines.push(`model=${values.model.trim()}`);
+  }
+
+  if (values.display_name?.trim()) {
+    lines.push(`display_name=${values.display_name.trim()}`);
+  }
+
+  if (values.base_url?.trim()) {
+    lines.push(`base_url=${normalizeBaseUrl(values.base_url)}`);
+  }
+
+  if (values.models_json?.trim()) {
+    lines.push(`models_json=${values.models_json.trim()}`);
   }
 
   if (values.timezone?.trim()) {
@@ -263,6 +296,29 @@ function validateThinkingEffort(value: ThinkingEffort | undefined): ThinkingEffo
 function readTimezone(values: Record<string, string>): string | undefined {
   const timezone = values.timezone?.trim();
   return timezone && isValidTimezone(timezone) ? timezone : undefined;
+}
+
+function readCompatibleProviderFields(
+  provider: UserProviderName,
+  values: Record<string, string>,
+): Pick<UserProviderConfig, "displayName" | "baseUrl" | "customModels"> {
+  if (provider !== "openai_compatible") {
+    return {};
+  }
+
+  const displayName = values.display_name?.trim()
+    ? validateDisplayName(values.display_name)
+    : undefined;
+  const baseUrl = values.base_url?.trim()
+    ? normalizeBaseUrl(values.base_url)
+    : undefined;
+  const customModels = parseCustomModelsJson(values.models_json);
+
+  return {
+    ...(displayName ? { displayName } : {}),
+    ...(baseUrl ? { baseUrl } : {}),
+    ...(customModels ? { customModels } : {}),
+  };
 }
 
 function parseIni(raw: string): Record<string, string> {

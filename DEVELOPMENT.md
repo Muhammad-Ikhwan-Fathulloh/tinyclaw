@@ -117,7 +117,23 @@ Point a local CLI at a containerized server with `TINYCLAW_SERVER_URL=http://127
 | `TINYCLAW_MODEL` | Model ID override |
 | `OPENAI_API_KEY` | OpenAI API key (optional; overrides `config.ini` when set) |
 | `ANTHROPIC_API_KEY` | Anthropic API key (optional; overrides `config.ini` when set) |
+| `OPENROUTER_API_KEY` | OpenRouter API key (optional; overrides `config.ini` when set) |
+| `GEMINI_API_KEY` | Gemini API key (optional; overrides `config.ini` when set) |
+| `OPENAI_COMPATIBLE_API_KEY` | Custom OpenAI-compatible API key (optional; overrides `config.ini` when set) |
+| `TINYCLAW_PROVIDER` | Force provider (`openai`, `anthropic`, `openrouter`, `gemini`, `openai_compatible`) |
+| `TINYCLAW_BASE_URL` | Base URL for `openai_compatible` when using env-based config (e.g. `http://localhost:11434/v1`) |
 | `DATABASE_URL` | SQLite path (default `file:data/sqlite/tinyclaw.sqlite`) |
+
+### Custom OpenAI-compatible provider
+
+Configure from **Settings → Custom (OpenAI-compatible)** or CLI setup:
+
+- **Provider name** — display label (e.g. `Ollama`, `LM Studio`)
+- **Base URL** — OpenAI-compatible root (e.g. `http://localhost:11434/v1`)
+- **API key** — optional for local endpoints
+- **Models** — your own list (model id, optional display name, optional $/1M input/output for cost estimates)
+
+Saved in `~/.tinyclaw/config.ini` as `provider=openai_compatible`, `display_name`, `base_url`, and `models_json`. Use **Fetch from server** in the UI (or `POST /v1/models/discover`) to import ids from the upstream `/models` endpoint.
 
 ## Available models
 

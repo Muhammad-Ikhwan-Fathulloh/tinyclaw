@@ -17,6 +17,7 @@
     "@tinyclaw/agent": "workspace:*",
     "@tinyclaw/core": "workspace:*",
     "@tinyclaw/db": "workspace:*",
-    "croner": "^10.0.1"
+    "croner": "^10.0.1",
+    "openai": "^6.41.0"
   }
 }

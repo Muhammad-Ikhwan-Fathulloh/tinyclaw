@@ -32,6 +32,7 @@ const NATIVE_DOCUMENT_MEDIA_TYPES: Record<ProviderName, ReadonlySet<string>> = {
     "text/csv",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ]),
+  openai_compatible: new Set<string>(),
 };
 
 export function registerDocumentTextParser(

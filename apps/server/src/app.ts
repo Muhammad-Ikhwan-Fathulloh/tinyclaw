@@ -42,6 +42,7 @@ import {
   type SetModelResponse,
   type ConfigureProviderRequest,
   type ConfigureProviderResponse,
+  type DiscoverModelsRequest,
   type CompactSessionRequest,
   type CompactionResponse,
   type SoulStackResponse,
@@ -132,11 +133,22 @@ export function createApp(options: ServerOptions) {
         }
 
         if (request.method === "GET" && url.pathname === "/v1/system/status") {
-          return json<SystemStatusResponse>(systemStatus.getStatus());
+          return json<SystemStatusResponse>(await systemStatus.getStatus());
         }
 
         if (request.method === "GET" && url.pathname === "/v1/models") {
-          return json<ModelsResponse>(agent.getModels());
+          const source = url.searchParams.get("source");
+          const modelsSource =
+            source === "remote" ? ("remote" as const) : ("catalog" as const);
+          return json<ModelsResponse>(
+            await agent.getModels({ source: modelsSource }),
+          );
+        }
+
+        if (request.method === "POST" && url.pathname === "/v1/models/discover") {
+          const body = await readJson<DiscoverModelsRequest>(request);
+          const result = await agent.discoverModels(body.baseUrl, body.apiKey ?? "");
+          return json<ModelsResponse>(result);
         }
 
         if (request.method === "PUT" && url.pathname === "/v1/settings/model") {
@@ -148,11 +160,7 @@ export function createApp(options: ServerOptions) {
 
         if (request.method === "PUT" && url.pathname === "/v1/settings/provider") {
           const body = await readJson<ConfigureProviderRequest>(request);
-          const result = await agent.configureProvider(
-            body.apiKey,
-            body.model,
-            body.provider,
-          );
+          const result = await agent.configureProvider(body);
 
           return json<ConfigureProviderResponse>(result);
         }

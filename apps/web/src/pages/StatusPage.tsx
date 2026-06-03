@@ -7,6 +7,7 @@ import {
   ClockIcon,
   CoinsIcon,
   KanbanIcon,
+  MessageCircleIcon,
   ServerIcon,
   SparklesIcon,
   WorkflowIcon,
@@ -30,7 +31,6 @@ const iconTileClass =
 const iconClass = "size-5 text-foreground";
 
 type StatusTone = "ok" | "warn" | "bad";
-type ValueKind = "ok" | "warn" | "bad" | "active" | "neutral";
 
 export function StatusPage() {
   const { data: status, error, isLoading } = useSystemStatusQuery();
@@ -47,7 +47,7 @@ export function StatusPage() {
           <div className="min-w-0 space-y-0.5">
             <h1 className="type-page-title">Status</h1>
             <p className="type-body max-w-2xl">
-              Live health for the TinyClaw server and in-process workers.
+              Live health for the server, workers, and Telegram bridge.
             </p>
           </div>
         </div>
@@ -99,26 +99,20 @@ function StatusDashboard({ status }: { status: SystemStatusResponse }) {
       <SummaryStrip status={status} summary={summary} />
 
       <div className="grid grid-cols-1 divide-y divide-border border-b border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <QuickStat
-          label="Scheduled jobs"
-          value={automationWorker.scheduledJobs}
-          hint="Enabled cron automations"
-        />
+        <QuickStat label="Scheduled jobs" value={automationWorker.scheduledJobs} />
         <QuickStat
           label="Automation runs"
           value={automationWorker.activeRuns}
-          hint="Currently executing"
           active={automationWorker.activeRuns > 0}
         />
         <QuickStat
           label="Task runs"
           value={taskWorker.activeRuns}
-          hint="Agent swarm in progress"
           active={taskWorker.activeRuns > 0}
         />
       </div>
 
-      <div className="grid grid-cols-1 divide-y divide-border lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+      <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
         {services.map((service) => (
           <ServiceColumn key={service.title} {...service} />
         ))}
@@ -154,7 +148,7 @@ function LlmUsageSection({ usage }: { usage: LlmUsageStatus }) {
         {usage.providerConfigured && usage.provider ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-foreground">
-              {formatProviderLabel(usage.provider)}
+              {formatProviderLabel(usage.provider, usage.displayName)}
             </span>
             <span className="inline-flex max-w-[16rem] items-center truncate rounded-full border border-border bg-background px-2.5 py-1 font-mono text-xs text-muted-foreground">
               {modelLabel}
@@ -189,9 +183,11 @@ function LlmUsageSection({ usage }: { usage: LlmUsageStatus }) {
             <div className="rounded-lg border border-border bg-gradient-to-br from-primary/5 via-card to-card p-5 dark:from-primary/10">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <p className="type-label">Estimated API cost</p>
+                  <p className="type-label">
+                    {usage.costEstimated ? "Estimated API cost" : "API cost"}
+                  </p>
                   <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-                    {formatUsd(usage.estimatedCostUsd)}
+                    {usage.costEstimated ? formatUsd(usage.estimatedCostUsd) : "—"}
                   </p>
                 </div>
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -199,7 +195,11 @@ function LlmUsageSection({ usage }: { usage: LlmUsageStatus }) {
                 </div>
               </div>
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                Based on catalog pricing for {modelLabel}. Actual billing may differ.
+                {usage.costEstimated
+                  ? usage.provider === "openai_compatible"
+                    ? `Based on pricing you configured for ${modelLabel}. Actual billing may differ.`
+                    : `Based on catalog pricing for ${modelLabel}. Actual billing may differ.`
+                  : "Add input/output $/1M per model in Settings → Manage models to estimate cost."}
               </p>
             </div>
 
@@ -435,12 +435,10 @@ function SummaryStrip({
 function QuickStat({
   label,
   value,
-  hint,
   active = false,
 }: {
   label: string;
   value: number;
-  hint: string;
   active?: boolean;
 }) {
   return (
@@ -459,79 +457,48 @@ function QuickStat({
       >
         {value}
       </p>
-      <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }
+
+type ServiceStatusTone = "ok" | "warn" | "bad" | "muted";
 
 function ServiceColumn({
   icon: Icon,
   title,
-  ok,
-  rows,
+  status,
+  tone,
 }: {
   icon: LucideIcon;
   title: string;
-  ok: boolean;
-  rows: Array<{ label: string; value: string; kind?: ValueKind }>;
+  status: string;
+  tone: ServiceStatusTone;
 }) {
   return (
-    <div className="min-w-0 p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <span
+    <div className="flex min-w-0 items-center gap-3 p-5">
+      <span
+        className={cn(
+          iconTileClass,
+          tone === "bad" && "bg-destructive/5",
+        )}
+      >
+        <Icon className={iconClass} aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="type-section-title leading-tight">{title}</h2>
+        <p
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/40",
-            !ok && "bg-destructive/5",
+            "mt-1 text-xs font-medium leading-none",
+            tone === "ok" && "text-emerald-700 dark:text-emerald-300",
+            tone === "warn" && "text-amber-700 dark:text-amber-300",
+            tone === "bad" && "text-destructive",
+            tone === "muted" && "text-muted-foreground",
           )}
         >
-          <Icon className={iconClass} aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <h2 className="type-section-title leading-tight">{title}</h2>
-          <p
-            className={cn(
-              "mt-1 text-xs font-medium leading-none",
-              ok ? "text-emerald-700 dark:text-emerald-300" : "text-destructive",
-            )}
-          >
-            {ok ? "Healthy" : "Needs attention"}
-          </p>
-        </div>
+          {status}
+        </p>
       </div>
-
-      <dl className="space-y-3">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between gap-4 text-sm">
-            <dt className="text-muted-foreground">{row.label}</dt>
-            <dd className="min-w-0 text-right">
-              <StatusValue kind={row.kind ?? "neutral"}>{row.value}</StatusValue>
-            </dd>
-          </div>
-        ))}
-      </dl>
     </div>
-  );
-}
-
-function StatusValue({ kind, children }: { kind: ValueKind; children: ReactNode }) {
-  const dotClass =
-    kind === "ok"
-      ? "bg-emerald-500"
-      : kind === "warn"
-        ? "bg-amber-500"
-        : kind === "bad"
-          ? "bg-red-500"
-          : kind === "active"
-            ? "bg-primary"
-            : null;
-
-  return (
-    <span className="inline-flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums text-foreground">
-      {dotClass ? (
-        <span className={cn("size-2 shrink-0 rounded-full", dotClass)} aria-hidden />
-      ) : null}
-      {children}
-    </span>
   );
 }
 
@@ -568,63 +535,73 @@ function StatusSkeleton() {
 }
 
 function buildServiceColumns(status: SystemStatusResponse) {
-  const { server, automationWorker, taskWorker } = status;
+  const { server, automationWorker, telegramWorker } = status;
 
   return [
     {
       icon: ServerIcon,
       title: "Server",
-      ok: server.ok,
-      rows: [
-        {
-          label: "Reachability",
-          value: server.ok ? "Online" : "Offline",
-          kind: server.ok ? ("ok" as const) : ("bad" as const),
-        },
-        { label: "API version", value: String(server.apiVersion) },
-        {
-          label: "LLM provider",
-          value: server.providerConfigured ? "Configured" : "Not configured",
-          kind: server.providerConfigured ? ("ok" as const) : ("warn" as const),
-        },
-      ],
+      ...serverServiceStatus(server),
     },
     {
       icon: WorkflowIcon,
-      title: "Automation worker",
-      ok: automationWorker.ok,
-      rows: [
-        {
-          label: "Scheduler",
-          value: automationWorker.running ? "Running" : "Stopped",
-          kind: automationWorker.running ? ("ok" as const) : ("bad" as const),
-        },
-        { label: "Scheduled jobs", value: String(automationWorker.scheduledJobs) },
-        {
-          label: "Active runs",
-          value: String(automationWorker.activeRuns),
-          kind: automationWorker.activeRuns > 0 ? ("active" as const) : ("neutral" as const),
-        },
-      ],
+      title: "Automation",
+      ...workerServiceStatus(automationWorker.ok, "Stopped"),
     },
     {
       icon: KanbanIcon,
-      title: "Task worker",
-      ok: taskWorker.ok,
-      rows: [
-        {
-          label: "Active runs",
-          value: String(taskWorker.activeRuns),
-          kind: taskWorker.activeRuns > 0 ? ("active" as const) : ("neutral" as const),
-        },
-        {
-          label: "LLM provider",
-          value: taskWorker.providerConfigured ? "Ready" : "Not configured",
-          kind: taskWorker.providerConfigured ? ("ok" as const) : ("warn" as const),
-        },
-      ],
+      title: "Tasks",
+      status: "Healthy",
+      tone: "ok" as const,
+    },
+    {
+      icon: MessageCircleIcon,
+      title: "Telegram",
+      ...telegramServiceStatus(telegramWorker),
     },
   ];
+}
+
+function serverServiceStatus(server: SystemStatusResponse["server"]): {
+  status: string;
+  tone: ServiceStatusTone;
+} {
+  if (!server.ok) {
+    return { status: "Offline", tone: "bad" };
+  }
+
+  if (!server.providerConfigured) {
+    return { status: "No provider", tone: "warn" };
+  }
+
+  return { status: "Healthy", tone: "ok" };
+}
+
+function workerServiceStatus(
+  ok: boolean,
+  offlineLabel: string,
+): { status: string; tone: ServiceStatusTone } {
+  return ok
+    ? { status: "Healthy", tone: "ok" }
+    : { status: offlineLabel, tone: "bad" };
+}
+
+function telegramServiceStatus(
+  telegramWorker: SystemStatusResponse["telegramWorker"],
+): { status: string; tone: ServiceStatusTone } {
+  if (!telegramWorker.configured) {
+    return { status: "Not set up", tone: "muted" };
+  }
+
+  if (!telegramWorker.running) {
+    return { status: "Offline", tone: "bad" };
+  }
+
+  if (!telegramWorker.paired) {
+    return { status: "Awaiting pairing", tone: "warn" };
+  }
+
+  return { status: "Healthy", tone: "ok" };
 }
 
 function deriveSummary(status: SystemStatusResponse): {
@@ -648,6 +625,14 @@ function deriveSummary(status: SystemStatusResponse): {
     };
   }
 
+  if (status.telegramWorker.configured && !status.telegramWorker.running) {
+    return {
+      tone: "warn",
+      title: "Telegram bridge offline",
+      description: "Start the Telegram worker (bun run dev:telegram) to receive messages.",
+    };
+  }
+
   if (!status.server.providerConfigured || !status.automationWorker.providerConfigured) {
     return {
       tone: "warn",
@@ -659,7 +644,7 @@ function deriveSummary(status: SystemStatusResponse): {
   return {
     tone: "ok",
     title: "All systems operational",
-    description: "Server and workers are healthy.",
+    description: "Server, workers, and Telegram bridge are healthy.",
   };
 }
 

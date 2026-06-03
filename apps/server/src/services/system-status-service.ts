@@ -1,5 +1,5 @@
 import type { HealthResponse, LlmUsageStatus, SystemStatusResponse } from "@tinyclaw/core";
-import { TINYCLAW_API_VERSION } from "@tinyclaw/core";
+import { getTelegramWorkerStatus, TINYCLAW_API_VERSION } from "@tinyclaw/core";
 import type { AgentService } from "./agent-service";
 import type { AutomationRunner } from "./automation-runner";
 import type { AutomationScheduler } from "./automation-scheduler";
@@ -13,10 +13,11 @@ export class SystemStatusService {
     private readonly taskRunner: TaskRunner,
   ) {}
 
-  getStatus(): SystemStatusResponse {
+  async getStatus(): Promise<SystemStatusResponse> {
     const scheduler = this.scheduler.getStatus();
     const providerConfigured = this.agent.providerConfigured;
-    const models = this.agent.getModels();
+    const models = await this.agent.getModels();
+    const usageFields = this.agent.getUsageStatusFields();
 
     return {
       server: this.getServerStatus(),
@@ -32,7 +33,13 @@ export class SystemStatusService {
         activeRuns: this.taskRunner.getActiveRunCount(),
         providerConfigured,
       },
-      llmUsage: this.getLlmUsage(models.provider, models.currentModel, providerConfigured),
+      telegramWorker: await getTelegramWorkerStatus(),
+      llmUsage: this.getLlmUsage(
+        models.provider,
+        models.currentModel,
+        providerConfigured,
+        usageFields,
+      ),
       checkedAt: new Date().toISOString(),
     };
   }
@@ -41,12 +48,15 @@ export class SystemStatusService {
     provider: LlmUsageStatus["provider"],
     currentModel: string | null,
     providerConfigured: boolean,
+    usageFields: { displayName: string | null; costEstimated: boolean },
   ): LlmUsageStatus {
     return {
       ...this.agent.getLlmUsageStats(),
       provider,
       currentModel,
       providerConfigured,
+      displayName: usageFields.displayName,
+      costEstimated: usageFields.costEstimated,
     };
   }
 

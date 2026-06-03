@@ -21,6 +21,7 @@ import type {
   ProfileResponse,
   ToolResponse,
   ToolSourceResponse,
+  ConfigureProviderRequest,
   ConfigureProviderResponse,
   ImageAttachment,
   SetModelResponse,
@@ -39,6 +40,12 @@ import type {
   UserProviderConfig,
   type ProviderChatOptions,
   type ProviderClient,
+} from "@tinyclaw/core";
+import {
+  isValidBaseUrl,
+  normalizeBaseUrl,
+  validateCustomModels,
+  validateDisplayName,
 } from "@tinyclaw/core";
 import {
   buildThinkingProviderOptions,
@@ -77,9 +84,12 @@ import {
 import {
   createProviderFromSources,
   detectProvider,
-  getAvailableModels,
+  fetchRemoteOpenAIModels,
   getDefaultModel,
   getModelById,
+  getModelsForConfiguredProvider,
+  isCompatibleModelId,
+  isCostEstimated,
   isOpenRouterModelSlug,
   resolveModel,
 } from "../providers";
@@ -210,7 +220,11 @@ export class AgentService {
   private resolveChatProviderOptions(
     overrides?: Partial<ProviderChatOptions>,
   ): ProviderChatOptions | undefined {
-    const thinking = buildThinkingProviderOptions(this.userConfig);
+    const providerName = detectProvider(process.env, this.userConfig);
+    const thinking =
+      providerName === "openai_compatible"
+        ? undefined
+        : buildThinkingProviderOptions(this.userConfig);
     const webSearch = overrides?.webSearch;
     const mergedThinking = overrides?.thinking ?? thinking;
 
@@ -559,19 +573,81 @@ export class AgentService {
     );
   }
 
-  getModels(): ModelsResponse {
+  async discoverModels(baseUrl: string, apiKey = ""): Promise<ModelsResponse> {
+    const entries = await fetchRemoteOpenAIModels(baseUrl, apiKey);
+    const models = getModelsForConfiguredProvider("openai_compatible", {
+      provider: "openai_compatible",
+      apiKey,
+      baseUrl,
+      customModels: entries,
+    });
+
+    return {
+      provider: "openai_compatible",
+      currentModel: null,
+      defaultModel: entries[0]?.id ?? null,
+      displayName: null,
+      models,
+    };
+  }
+
+  async getModels(options: { source?: "catalog" | "remote" } = {}): Promise<ModelsResponse> {
     const provider = detectProvider(process.env, this.userConfig);
     const currentModel =
       provider && this.userConfig
-        ? resolveModel(provider, this.userConfig.model)
+        ? resolveModel(
+            provider,
+            this.userConfig.model,
+            this.userConfig.customModels,
+          )
         : null;
-    const defaultModel = provider ? getDefaultModel(provider) : "gpt-5.4";
+    const defaultModel = provider
+      ? getDefaultModel(provider, this.userConfig?.customModels)
+      : "gpt-5.4";
+    const displayName =
+      provider === "openai_compatible" ? (this.userConfig?.displayName ?? null) : null;
+    const baseUrl =
+      provider === "openai_compatible" ? (this.userConfig?.baseUrl ?? null) : null;
+    const customModels =
+      provider === "openai_compatible" ? (this.userConfig?.customModels ?? []) : undefined;
+
+    let models = getModelsForConfiguredProvider(
+      provider,
+      this.userConfig,
+      currentModel,
+    );
+
+    if (
+      options.source === "remote" &&
+      provider === "openai_compatible" &&
+      this.userConfig?.baseUrl
+    ) {
+      const remote = fetchRemoteOpenAIModels(
+        this.userConfig.baseUrl,
+        this.userConfig.apiKey,
+      );
+      return {
+        provider,
+        currentModel,
+        defaultModel,
+        displayName,
+        baseUrl,
+        customModels: await remote,
+        models: getModelsForConfiguredProvider(provider, {
+          ...this.userConfig,
+          customModels: await remote,
+        }),
+      };
+    }
 
     return {
       provider,
       currentModel,
       defaultModel,
-      models: getAvailableModels(),
+      displayName,
+      baseUrl,
+      customModels,
+      models,
     };
   }
 
@@ -601,6 +677,12 @@ export class AgentService {
     if (!option) {
       if (isOpenRouterModelSlug(trimmedModel)) {
         targetProvider = "openrouter";
+        targetModel = trimmedModel;
+      } else if (
+        this.userConfig.provider === "openai_compatible" &&
+        isCompatibleModelId(trimmedModel, this.userConfig.customModels)
+      ) {
+        targetProvider = "openai_compatible";
         targetModel = trimmedModel;
       } else {
         throw new Error(`Unknown model: ${model}`);
@@ -647,25 +729,34 @@ export class AgentService {
   }
 
   async configureProvider(
-    apiKey: string,
-    model: string | undefined,
-    provider: UserProviderConfig["provider"],
+    request: ConfigureProviderRequest,
   ): Promise<ConfigureProviderResponse> {
-    const trimmedKey = apiKey.trim();
+    const provider = request.provider;
+    const trimmedKey = request.apiKey.trim();
+    const apiKey =
+      trimmedKey ||
+      (provider === "openai_compatible" ? (this.userConfig?.apiKey ?? "") : "");
 
-    if (!trimmedKey) {
+    if (!apiKey && provider !== "openai_compatible") {
       throw new Error("API key is required.");
     }
 
-    const selectedModel = model?.trim()
-      ? resolveModel(provider, model.trim())
-      : getDefaultModel(provider);
+    const compatibleFields =
+      provider === "openai_compatible"
+        ? this.buildCompatibleProviderFields(request)
+        : {};
+
+    const customModels = compatibleFields.customModels;
+    const selectedModel = request.model?.trim()
+      ? resolveModel(provider, request.model.trim(), customModels)
+      : getDefaultModel(provider, customModels);
     const option = getModelById(selectedModel);
     const thinking = await this.resolveThinkingSettings();
     const nextConfig: UserProviderConfig = {
       provider: option?.provider ?? provider,
-      apiKey: trimmedKey,
+      apiKey,
       model: selectedModel,
+      ...compatibleFields,
       ...(this.userConfig?.timezone ? { timezone: this.userConfig.timezone } : {}),
       thinkingEnabled: thinking.enabled,
       thinkingEffort: thinking.effort,
@@ -688,7 +779,36 @@ export class AgentService {
     return {
       provider: nextConfig.provider,
       currentModel: selectedModel,
+      displayName:
+        nextConfig.provider === "openai_compatible"
+          ? (nextConfig.displayName ?? null)
+          : null,
     };
+  }
+
+  private buildCompatibleProviderFields(
+    request: ConfigureProviderRequest,
+  ): Pick<UserProviderConfig, "displayName" | "baseUrl" | "customModels"> {
+    const displayName = validateDisplayName(request.displayName ?? "");
+    const baseUrl = normalizeBaseUrl(request.baseUrl ?? "");
+
+    if (!isValidBaseUrl(baseUrl)) {
+      throw new Error("A valid http(s) base URL is required.");
+    }
+
+    let customModels = request.customModels?.length
+      ? validateCustomModels(request.customModels)
+      : undefined;
+
+    if (!customModels?.length && request.model?.trim()) {
+      customModels = validateCustomModels([{ id: request.model.trim(), default: true }]);
+    }
+
+    if (!customModels?.length) {
+      throw new Error("At least one model is required.");
+    }
+
+    return { displayName, baseUrl, customModels };
   }
 
   async listProfiles(): Promise<ListProfilesResponse> {
@@ -839,8 +959,14 @@ export class AgentService {
     const providerName = detectProvider(process.env, this.userConfig);
     const modelId =
       provider && providerName && this.userConfig
-        ? resolveModel(providerName, this.userConfig.model)
+        ? resolveModel(
+            providerName,
+            this.userConfig.model,
+            this.userConfig.customModels,
+          )
         : null;
+
+    this.syncUsagePricingContext(providerName, modelId);
 
     const trackedProvider =
       provider && this.llmUsageTracker && modelId
@@ -851,6 +977,37 @@ export class AgentService {
       provider: trackedProvider ?? undefined,
       chatOptions: this.resolveChatProviderOptions(),
     });
+  }
+
+  private syncUsagePricingContext(
+    provider: ReturnType<typeof detectProvider>,
+    modelId: string | null,
+  ): void {
+    this.llmUsageTracker?.setPricingContext({
+      provider,
+      userConfig: this.userConfig,
+    });
+  }
+
+  getUsageStatusFields(): {
+    displayName: string | null;
+    costEstimated: boolean;
+  } {
+    const provider = detectProvider(process.env, this.userConfig);
+    const currentModel =
+      provider && this.userConfig
+        ? resolveModel(
+            provider,
+            this.userConfig.model,
+            this.userConfig.customModels,
+          )
+        : null;
+
+    return {
+      displayName:
+        provider === "openai_compatible" ? (this.userConfig?.displayName ?? null) : null,
+      costEstimated: isCostEstimated(provider, currentModel, this.userConfig),
+    };
   }
 
   private async requireProfile(profileId: string): Promise<StoredProfileRecord> {

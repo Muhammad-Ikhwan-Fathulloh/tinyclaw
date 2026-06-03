@@ -207,7 +207,7 @@ function toOpenAIAssistantToolCalls(toolCalls: ToolCall[]) {
   }));
 }
 
-function toOpenAITools(tools: LlmToolDefinition[] | undefined) {
+export function toOpenAITools(tools: LlmToolDefinition[] | undefined) {
   if (!tools?.length) {
     return undefined;
   }
@@ -222,7 +222,7 @@ function toOpenAITools(tools: LlmToolDefinition[] | undefined) {
   }));
 }
 
-function parseOpenAIToolCalls(
+export function parseOpenAIToolCalls(
   toolCalls:
     | Array<{
         id?: string;

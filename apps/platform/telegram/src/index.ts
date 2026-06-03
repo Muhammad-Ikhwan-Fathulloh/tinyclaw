@@ -1,5 +1,9 @@
 import { createClient } from "@tinyclaw/client";
 import { ensureServerRunning, stopSpawnedServer } from "@tinyclaw/core/ensure-server";
+import {
+  clearTelegramWorkerHeartbeat,
+  writeTelegramWorkerHeartbeat,
+} from "@tinyclaw/core/telegram-worker";
 import { TelegramAuthStore } from "./auth-store";
 import { createBot } from "./bot";
 import { loadConfig } from "./config";
@@ -7,9 +11,14 @@ import { SessionStore } from "./session-store";
 
 let spawnedChild: Bun.Subprocess | null = null;
 let botStop: (() => void) | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 registerCleanupHandlers(() => {
   botStop?.();
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+  }
+  void clearTelegramWorkerHeartbeat();
   stopSpawnedServer(spawnedChild);
 });
 
@@ -44,6 +53,11 @@ try {
   console.log(`Paired users: ${paired} · Pending handshake: ${pendingHandshake}`);
 
   botStop = () => bot.stop();
+
+  await writeTelegramWorkerHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    void writeTelegramWorkerHeartbeat();
+  }, 15_000);
 
   await bot.start({
     onStart: (info) => {

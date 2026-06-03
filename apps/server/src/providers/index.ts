@@ -3,5 +3,8 @@ export * from "./create";
 export * from "./detect";
 export * from "./gemini";
 export * from "./models";
+export * from "./compatible-models";
 export * from "./openai";
+export * from "./openai-compatible";
 export * from "./openrouter";
+export * from "./pricing";

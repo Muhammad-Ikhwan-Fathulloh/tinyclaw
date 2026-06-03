@@ -129,8 +129,20 @@ export class TinyClawClient {
     return this.request<SystemStatusResponse>("/v1/system/status");
   }
 
-  async getModels(): Promise<ModelsResponse> {
-    return this.request<ModelsResponse>("/v1/models");
+  async getModels(options: { source?: "catalog" | "remote" } = {}): Promise<ModelsResponse> {
+    const query =
+      options.source === "remote" ? "?source=remote" : "";
+    return this.request<ModelsResponse>(`/v1/models${query}`);
+  }
+
+  async discoverModels(request: {
+    baseUrl: string;
+    apiKey?: string;
+  }): Promise<ModelsResponse> {
+    return this.request<ModelsResponse>("/v1/models/discover", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
   }
 
   async setModel(model: string): Promise<SetModelResponse> {

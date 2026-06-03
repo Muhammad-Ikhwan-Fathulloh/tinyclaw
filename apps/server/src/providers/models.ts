@@ -1,4 +1,6 @@
+import { findCustomModel, type CustomModelEntry } from "@tinyclaw/core";
 import type { ProviderName } from "@tinyclaw/core";
+import { resolveCompatibleDefaultModel } from "./compatible-models";
 
 export interface ProviderModelOption {
   id: string;
@@ -155,7 +157,14 @@ export function getModelsForProvider(
   return AVAILABLE_MODELS.filter((model) => model.provider === provider);
 }
 
-export function getDefaultModel(provider: ProviderName): string {
+export function getDefaultModel(
+  provider: ProviderName,
+  customModels?: CustomModelEntry[],
+): string {
+  if (provider === "openai_compatible") {
+    return resolveCompatibleDefaultModel(customModels);
+  }
+
   const models = getModelsForProvider(provider);
   const fallback =
     provider === "openrouter"
@@ -175,11 +184,20 @@ export function isValidModel(model: string): boolean {
 export function resolveModel(
   provider: ProviderName,
   model?: string,
+  customModels?: CustomModelEntry[],
 ): string {
   const trimmed = model?.trim();
 
   if (trimmed && provider === "openrouter" && isOpenRouterModelSlug(trimmed)) {
     return trimmed;
+  }
+
+  if (trimmed && provider === "openai_compatible") {
+    if (findCustomModel(customModels, trimmed)) {
+      return trimmed;
+    }
+
+    return resolveCompatibleDefaultModel(customModels, trimmed);
   }
 
   if (trimmed && isValidModel(trimmed)) {
@@ -190,5 +208,5 @@ export function resolveModel(
     }
   }
 
-  return getDefaultModel(provider);
+  return getDefaultModel(provider, customModels);
 }
