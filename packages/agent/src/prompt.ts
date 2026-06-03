@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@tinyclaw/core";
+import type { AgentChannel, ToolDefinition } from "@tinyclaw/core";
 
 export function buildAutomationSystemPrompt(tools: ToolDefinition[]): string {
   const toolCatalog =
@@ -36,7 +36,7 @@ export function buildAutomationSystemPrompt(tools: ToolDefinition[]): string {
 
 export function buildAutomationUserPrompt(
   prompt: string,
-  channel: "web" | "cli" | "telegram",
+  channel: AgentChannel,
 ): string {
   return [
     `Channel: ${channel}`,

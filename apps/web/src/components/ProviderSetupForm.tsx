@@ -1,5 +1,8 @@
 import type { ConfigureProviderResponse } from "@tinyclaw/core/contract";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useState } from "react";
+import { ModelsBrowseList } from "@/components/ModelsBrowseList";
+import type { ModelsDevRow } from "@/hooks/use-models-dev";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -38,171 +41,215 @@ export function ProviderSetupForm({
   onSuccess,
 }: ProviderSetupFormProps) {
   const form = useProviderSetupForm({ onSuccess });
+  const [isBrowsing, setIsBrowsing] = useState(false);
 
   const formSpacing = density === "compact" ? "space-y-4" : "space-y-5";
 
+  function handleBrowseSelect(provider: SelectedProvider, modelId: string, row: ModelsDevRow) {
+    form.handleBrowseSelect(provider, modelId, row);
+    setIsBrowsing(false);
+  }
+
   return (
     <form className={formSpacing} onSubmit={(event) => void form.handleSubmit(event)}>
-      {showHeading ? (
+      {showHeading && (
         <div>
           <h3 className="text-sm font-medium text-foreground">Connect a provider</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Choose a provider, paste your API key, and pick a default model.
           </p>
         </div>
-      ) : null}
+      )}
 
-      <ProviderSelect
-        selectedProvider={form.selectedProvider}
-        disabled={form.busy}
-        density={density}
-        onSelect={form.handleProviderSelect}
-      />
-
-      {form.selectedProvider === "openai_compatible" ? (
-        <CustomCompatibleProviderFields
-          displayName={form.displayName}
-          baseUrl={form.baseUrl}
-          apiKey={form.apiKey}
-          customModels={form.customModels}
-          disabled={form.busy}
-          density={density}
-          displayNameError={form.displayNameError}
-          baseUrlError={form.baseUrlError}
-          modelsError={form.modelsError}
-          onDisplayNameChange={form.setDisplayName}
-          onBaseUrlChange={form.setBaseUrl}
-          onCustomModelsChange={form.setCustomModels}
-        />
-      ) : null}
-
-      <FormField
-        id="api-key"
-        label={form.selectedProvider === "openai_compatible" ? "API key (optional)" : "API key"}
-        density={density}
-        footer={
-          form.apiKeyError ? (
-            <p id="api-key-error" className="text-sm text-destructive" role="alert">
-              {form.apiKeyError}
-            </p>
-          ) : (
-            <p id="api-key-hint" className="text-xs text-muted-foreground">
-              Paste the API key from your{" "}
-              {PROVIDER_OPTIONS.find((option) => option.id === form.selectedProvider)?.label ??
-                "provider"}{" "}
-              dashboard.
-            </p>
-          )
-        }
-      >
-        <InputGroup>
-          <InputGroupInput
-            id="api-key"
-            type={form.showApiKey ? "text" : "password"}
-            autoComplete="off"
-            placeholder={apiKeyPlaceholder(form.selectedProvider)}
-            value={form.apiKey}
-            disabled={form.busy}
-            aria-invalid={form.apiKeyError != null}
-            aria-describedby={form.apiKeyError ? "api-key-error" : "api-key-hint"}
-            onBlur={form.handleApiKeyBlur}
-            onChange={(event) => form.handleApiKeyChange(event.target.value)}
-          />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              size="icon-sm"
-              aria-label={form.showApiKey ? "Hide API key" : "Show API key"}
-              onClick={() => form.setShowApiKey((current) => !current)}
-            >
-              {form.showApiKey ? <EyeOffIcon /> : <EyeIcon />}
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
-      </FormField>
-
-      <FormField id="model" label="Model" density={density}>
+      <FormField id="provider" label="Provider" density={density}>
         <Select
-          value={form.selectedModel}
-          disabled={form.busy || form.filteredModels.length === 0}
-          onValueChange={(value) => form.setSelectedModel(value != null ? String(value) : "")}
+          value={isBrowsing ? "__browse__" : form.selectedProvider}
+          disabled={form.busy}
+          onValueChange={(v) => {
+            if (v === "__browse__") {
+              setIsBrowsing(true);
+            } else if (isSelectedProvider(v)) {
+              setIsBrowsing(false);
+              form.handleProviderSelect(v);
+            }
+          }}
         >
-          <SelectTrigger id="model" className="w-full">
-            <SelectValue placeholder="Select a model" />
+          <SelectTrigger
+            id="provider"
+            className={density === "compact" ? "w-full" : "w-full sm:max-w-sm"}
+          >
+            <SelectValue>
+              {isBrowsing
+                ? "Browse models.dev…"
+                : (PROVIDER_OPTIONS.find((o) => o.id === form.selectedProvider)?.label ??
+                  form.selectedProvider)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {form.filteredModels.map((model) => (
-              <SelectItem key={model.id} value={model.id}>
-                {model.name}
-                {model.default ? " (default)" : ""}
+            {PROVIDER_OPTIONS.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {option.label}
               </SelectItem>
             ))}
+            <SelectItem value="__browse__">Browse models.dev…</SelectItem>
           </SelectContent>
         </Select>
       </FormField>
 
-      {form.selectedProvider === "openrouter" ? (
-        <FormField
-          id="custom-model"
-          density={density}
-          label={
-            <>
-              Custom model ID <span className="font-normal text-muted-foreground">(optional)</span>
-            </>
-          }
-          footer={
-            form.customModelError ? (
-              <p id="custom-model-error" className="text-sm text-destructive" role="alert">
-                {form.customModelError}
-              </p>
-            ) : (
-              <p id="custom-model-hint" className="text-xs text-muted-foreground">
-                Overrides the catalog selection when set. Use vendor/model format from OpenRouter.
-              </p>
-            )
-          }
-        >
-          <InputGroup>
-            <InputGroupInput
-              id="custom-model"
-              type="text"
-              autoComplete="off"
-              placeholder="anthropic/claude-sonnet-4-6"
-              value={form.customModel}
+      {isBrowsing ? (
+        <ModelsBrowseList
+          onSelect={handleBrowseSelect}
+          className="h-72 rounded-md border border-border"
+        />
+      ) : (
+        <>
+          {form.selectedProvider === "openai_compatible" ? (
+            <CustomCompatibleProviderFields
+              displayName={form.displayName}
+              baseUrl={form.baseUrl}
+              apiKey={form.apiKey}
+              customModels={form.customModels}
               disabled={form.busy}
-              aria-invalid={form.customModelError != null}
-              aria-describedby={
-                form.customModelError ? "custom-model-error" : "custom-model-hint"
-              }
-              onChange={(event) => form.handleCustomModelChange(event.target.value)}
+              density={density}
+              displayNameError={form.displayNameError}
+              baseUrlError={form.baseUrlError}
+              modelsError={form.modelsError}
+              onDisplayNameChange={form.setDisplayName}
+              onBaseUrlChange={form.setBaseUrl}
+              onCustomModelsChange={form.setCustomModels}
             />
-          </InputGroup>
-        </FormField>
-      ) : null}
+          ) : null}
 
-      {form.formError ? (
-        <p className="text-sm text-destructive" role="alert">
-          {form.formError}
-        </p>
-      ) : null}
+          <FormField
+            id="api-key"
+            label={form.selectedProvider === "openai_compatible" ? "API key (optional)" : "API key"}
+            density={density}
+            footer={
+              form.apiKeyError ? (
+                <p id="api-key-error" className="text-sm text-destructive" role="alert">
+                  {form.apiKeyError}
+                </p>
+              ) : (
+                <p id="api-key-hint" className="text-xs text-muted-foreground">
+                  Paste the API key from your{" "}
+                  {PROVIDER_OPTIONS.find((option) => option.id === form.selectedProvider)?.label ??
+                    "provider"}{" "}
+                  dashboard.
+                </p>
+              )
+            }
+          >
+            <InputGroup>
+              <InputGroupInput
+                id="api-key"
+                type={form.showApiKey ? "text" : "password"}
+                autoComplete="off"
+                placeholder={apiKeyPlaceholder(form.selectedProvider)}
+                value={form.apiKey}
+                disabled={form.busy}
+                aria-invalid={form.apiKeyError != null}
+                aria-describedby={form.apiKeyError ? "api-key-error" : "api-key-hint"}
+                onBlur={form.handleApiKeyBlur}
+                onChange={(event) => form.handleApiKeyChange(event.target.value)}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-sm"
+                  aria-label={form.showApiKey ? "Hide API key" : "Show API key"}
+                  onClick={() => form.setShowApiKey((current) => !current)}
+                >
+                  {form.showApiKey ? <EyeOffIcon /> : <EyeIcon />}
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </FormField>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="submit"
-          disabled={
-            form.busy ||
-            (form.selectedProvider !== "openai_compatible" && !form.apiKey.trim())
-          }
-        >
-          {form.busy ? (
-            <>
-              <Spinner className="mr-2" />
-              Saving…
-            </>
-          ) : (
-            submitLabel
-          )}
-        </Button>
-      </div>
+          <FormField id="model" label="Model" density={density}>
+            <Select
+              value={form.selectedModel}
+              disabled={form.busy || form.filteredModels.length === 0}
+              onValueChange={(value) => form.setSelectedModel(value != null ? String(value) : "")}
+            >
+              <SelectTrigger id="model" className="w-full">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {form.filteredModels.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                    {model.default ? " (default)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          {form.selectedProvider === "openrouter" ? (
+            <FormField
+              id="custom-model"
+              density={density}
+              label={
+                <>
+                  Custom model ID{" "}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </>
+              }
+              footer={
+                form.customModelError ? (
+                  <p id="custom-model-error" className="text-sm text-destructive" role="alert">
+                    {form.customModelError}
+                  </p>
+                ) : (
+                  <p id="custom-model-hint" className="text-xs text-muted-foreground">
+                    Overrides the catalog selection when set. Use vendor/model format from OpenRouter.
+                  </p>
+                )
+              }
+            >
+              <InputGroup>
+                <InputGroupInput
+                  id="custom-model"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="anthropic/claude-sonnet-4-6"
+                  value={form.customModel}
+                  disabled={form.busy}
+                  aria-invalid={form.customModelError != null}
+                  aria-describedby={
+                    form.customModelError ? "custom-model-error" : "custom-model-hint"
+                  }
+                  onChange={(event) => form.handleCustomModelChange(event.target.value)}
+                />
+              </InputGroup>
+            </FormField>
+          ) : null}
+
+          {form.formError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {form.formError}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              disabled={
+                form.busy ||
+                (form.selectedProvider !== "openai_compatible" && !form.apiKey.trim())
+              }
+            >
+              {form.busy ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Saving…
+                </>
+              ) : (
+                submitLabel
+              )}
+            </Button>
+          </div>
+        </>
+      )}
     </form>
   );
 }
@@ -213,56 +260,4 @@ function isSelectedProvider(value: string | null): value is SelectedProvider {
   }
 
   return PROVIDER_OPTIONS.some((option) => option.id === value);
-}
-
-export function ProviderSelect({
-  id = "provider",
-  label = "Provider",
-  selectedProvider,
-  disabled,
-  excludeProvider,
-  density = "default",
-  onSelect,
-}: {
-  id?: string;
-  label?: string;
-  selectedProvider: SelectedProvider;
-  disabled?: boolean;
-  density?: "default" | "compact";
-  /** Hide one provider (e.g. the active one when switching). */
-  excludeProvider?: SelectedProvider;
-  onSelect: (provider: SelectedProvider) => void;
-}) {
-  const options = excludeProvider
-    ? PROVIDER_OPTIONS.filter((option) => option.id !== excludeProvider)
-    : PROVIDER_OPTIONS;
-  const selectedOption = PROVIDER_OPTIONS.find((option) => option.id === selectedProvider);
-
-  return (
-    <FormField id={id} label={label} density={density}>
-      <Select
-        value={selectedProvider}
-        disabled={disabled}
-        onValueChange={(value) => {
-          if (value != null && isSelectedProvider(value)) {
-            onSelect(value);
-          }
-        }}
-      >
-        <SelectTrigger
-          id={id}
-          className={density === "compact" ? "w-full" : "w-full sm:max-w-sm"}
-        >
-          <SelectValue>{selectedOption?.label ?? selectedProvider}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </FormField>
-  );
 }

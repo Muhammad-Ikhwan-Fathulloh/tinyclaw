@@ -6,7 +6,9 @@ import {
   EyeIcon,
   EyeOffIcon,
 } from "lucide-react";
-import { ProviderSelect, ProviderSetupForm } from "@/components/ProviderSetupForm";
+import { ProviderSetupForm } from "@/components/ProviderSetupForm";
+import { ModelsBrowseList } from "@/components/ModelsBrowseList";
+import type { ModelsDevRow } from "@/hooks/use-models-dev";
 import { TelegramSettingsCard } from "@/components/TelegramSettingsCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserContextSettings } from "@/components/UserContextCard";
@@ -331,7 +333,7 @@ export function SettingsPage() {
             <div className="flex items-center gap-2">
               <TimezoneSelect
                 id="timezone"
-                className="w-[11rem] min-w-0 sm:w-[13rem]"
+                className="w-44 min-w-0 sm:w-52"
                 value={timezone}
                 disabled={saveTimezoneMutation.isPending}
                 emptyLabel="Select timezone"
@@ -406,7 +408,7 @@ export function SettingsPage() {
                   }
                 }}
               >
-                <SelectTrigger className="w-[7.25rem]" aria-label="Reasoning depth">
+                <SelectTrigger className="w-29" aria-label="Reasoning depth">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
@@ -549,6 +551,25 @@ function SettingsSkeleton() {
   );
 }
 
+function InlineField({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <label htmlFor={id} className="w-24 shrink-0 text-sm font-medium text-foreground">
+        {label}
+      </label>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
 function SwitchProviderSection({
   currentProvider,
   catalog,
@@ -570,6 +591,7 @@ function SwitchProviderSection({
   const [selectedModel, setSelectedModel] = useState("");
   const [customModel, setCustomModel] = useState("");
   const [customModelError, setCustomModelError] = useState<string | null>(null);
+  const [isBrowsing, setIsBrowsing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [customModels, setCustomModels] = useState<ModelListRow[]>([{ id: "", name: "" }]);
@@ -682,181 +704,233 @@ function SwitchProviderSection({
     }
   };
 
+  function handleBrowseSelect(provider: SelectedProvider, modelId: string, row: ModelsDevRow) {
+    setIsBrowsing(false);
+    setTargetProvider(provider);
+    setLocalError(null);
+    if (provider !== "openrouter") {
+      setCustomModel("");
+      setCustomModelError(null);
+    }
+    if (provider === "openrouter") {
+      setCustomModel(modelId);
+      setCustomModelError(null);
+    } else if (provider === "openai_compatible") {
+      setDisplayName(row.providerName);
+      setBaseUrl(row.apiUrl.replace(/\/$/, ""));
+      setCustomModels([{ id: modelId, name: row.modelName }]);
+      setSelectedModel(modelId);
+      if (row.isZen && row.isFree && !row.deprecated) {
+        setApiKey("public");
+      }
+    } else {
+      setSelectedModel(modelId);
+    }
+    if (apiKeyTouched && apiKey.trim()) {
+      setApiKeyError(validateApiKeyForProvider(apiKey, provider));
+    }
+  }
+
   return (
-    <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <ProviderSelect
-          id="switch-provider"
-          selectedProvider={targetProvider}
-          density="compact"
+    <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
+      <InlineField id="switch-provider" label="Provider">
+        <Select
+          value={isBrowsing ? "__browse__" : targetProvider}
           disabled={busy}
-          onSelect={(provider) => {
-            setTargetProvider(provider);
-            setLocalError(null);
-            if (provider !== "openrouter") {
-              setCustomModel("");
-              setCustomModelError(null);
-            }
-            if (apiKeyTouched && apiKey.trim()) {
-              setApiKeyError(validateApiKeyForProvider(apiKey, provider));
+          onValueChange={(v) => {
+            if (v === "__browse__") {
+              setIsBrowsing(true);
+            } else if (PROVIDER_OPTIONS.some((o) => o.id === v)) {
+              setIsBrowsing(false);
+              setTargetProvider(v as SelectedProvider);
+              setLocalError(null);
+              if (v !== "openrouter") {
+                setCustomModel("");
+                setCustomModelError(null);
+              }
+              if (apiKeyTouched && apiKey.trim()) {
+                setApiKeyError(validateApiKeyForProvider(apiKey, v as SelectedProvider));
+              }
             }
           }}
-        />
-
-        <FormField id="switch-model" label="Model" density="compact">
-          <Select
-            value={selectedModel}
-            disabled={busy || targetModels.length === 0}
-            onValueChange={(value) => setSelectedModel(value != null ? String(value) : "")}
-          >
-            <SelectTrigger id="switch-model" className="w-full">
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {targetModels.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {model.name}
-                  {model.default ? " (default)" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormField>
-      </div>
-
-      <FormField
-        id="switch-api-key"
-        label="API key"
-        density="compact"
-        footer={
-          apiKeyError ? (
-            <p id="switch-api-key-error" className="text-sm text-destructive" role="alert">
-              {apiKeyError}
-            </p>
-          ) : null
-        }
-      >
-        <InputGroup>
-          <InputGroupInput
-            id="switch-api-key"
-            type={showApiKey ? "text" : "password"}
-            autoComplete="off"
-            placeholder={apiKeyPlaceholder(targetProvider)}
-            value={apiKey}
-            disabled={busy}
-            aria-invalid={apiKeyError != null}
-            aria-describedby={apiKeyError ? "switch-api-key-error" : undefined}
-            onBlur={() => {
-              setApiKeyTouched(true);
-              if (!apiKey.trim()) {
-                setApiKeyError(null);
-                return;
-              }
-              setApiKeyError(validateApiKeyForProvider(apiKey, targetProvider));
-            }}
-            onChange={(event) => {
-              const value = event.target.value;
-              setApiKey(value);
-              setLocalError(null);
-              if (apiKeyTouched && value.trim()) {
-                setApiKeyError(validateApiKeyForProvider(value, targetProvider));
-              } else if (apiKeyError) {
-                setApiKeyError(null);
-              }
-            }}
-          />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              size="icon-sm"
-              aria-label={showApiKey ? "Hide API key" : "Show API key"}
-              onClick={() => setShowApiKey((current) => !current)}
-            >
-              {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
-      </FormField>
-
-      {targetProvider === "openrouter" ? (
-        <FormField
-          id="switch-custom-model"
-          density="compact"
-          label={
-            <>
-              Custom model ID <span className="font-normal text-muted-foreground">(optional)</span>
-            </>
-          }
-          footer={
-            customModelError ? (
-              <p id="switch-custom-model-error" className="text-sm text-destructive" role="alert">
-                {customModelError}
-              </p>
-            ) : (
-              <p id="switch-custom-model-hint" className="text-xs text-muted-foreground">
-                Overrides the catalog selection when set.
-              </p>
-            )
-          }
         >
-          <InputGroup>
-            <InputGroupInput
-              id="switch-custom-model"
-              type="text"
-              autoComplete="off"
-              placeholder="anthropic/claude-sonnet-4-6"
-              value={customModel}
-              disabled={busy}
-              aria-invalid={customModelError != null}
-              aria-describedby={
-                customModelError ? "switch-custom-model-error" : "switch-custom-model-hint"
-              }
-              onChange={(event) => {
-                const value = event.target.value;
-                setCustomModel(value);
-                setCustomModelError(validateCustomOpenRouterModel(value));
-              }}
-            />
-          </InputGroup>
-        </FormField>
-      ) : null}
+          <SelectTrigger id="switch-provider" className="w-full">
+            <SelectValue>
+              {isBrowsing
+                ? "Browse models.dev…"
+                : (PROVIDER_OPTIONS.find((o) => o.id === targetProvider)?.label ?? targetProvider)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {PROVIDER_OPTIONS.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {option.label}
+              </SelectItem>
+            ))}
+            <SelectItem value="__browse__">Browse models.dev…</SelectItem>
+          </SelectContent>
+        </Select>
+      </InlineField>
 
-      {targetProvider === "openai_compatible" ? (
-        <CustomCompatibleProviderFields
-          displayName={displayName}
-          baseUrl={baseUrl}
-          apiKey={apiKey}
-          customModels={customModels}
-          disabled={busy}
-          density="compact"
-          displayNameError={displayNameError}
-          baseUrlError={baseUrlError}
-          modelsError={modelsError}
-          onDisplayNameChange={setDisplayName}
-          onBaseUrlChange={setBaseUrl}
-          onCustomModelsChange={setCustomModels}
+      {isBrowsing ? (
+        <ModelsBrowseList
+          onSelect={handleBrowseSelect}
+          className="h-72 rounded-md border border-border"
         />
-      ) : null}
+      ) : (
+        <>
+          <InlineField id="switch-model" label="Model">
+            <Select
+              value={selectedModel}
+              disabled={busy || targetModels.length === 0}
+              onValueChange={(value) => setSelectedModel(value != null ? String(value) : "")}
+            >
+              <SelectTrigger id="switch-model" className="w-full">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {targetModels.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                    {model.default ? " (default)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </InlineField>
 
-      {localError ? (
-        <p className="text-sm text-destructive" role="alert">
-          {localError}
-        </p>
-      ) : null}
+          <div>
+            <InlineField id="switch-api-key" label="API key">
+              <InputGroup>
+                <InputGroupInput
+                  id="switch-api-key"
+                  type={showApiKey ? "text" : "password"}
+                  autoComplete="off"
+                  placeholder={apiKeyPlaceholder(targetProvider)}
+                  value={apiKey}
+                  disabled={busy}
+                  aria-invalid={apiKeyError != null}
+                  aria-describedby={apiKeyError ? "switch-api-key-error" : undefined}
+                  onBlur={() => {
+                    setApiKeyTouched(true);
+                    if (!apiKey.trim()) {
+                      setApiKeyError(null);
+                      return;
+                    }
+                    setApiKeyError(validateApiKeyForProvider(apiKey, targetProvider));
+                  }}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setApiKey(value);
+                    setLocalError(null);
+                    if (apiKeyTouched && value.trim()) {
+                      setApiKeyError(validateApiKeyForProvider(value, targetProvider));
+                    } else if (apiKeyError) {
+                      setApiKeyError(null);
+                    }
+                  }}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-sm"
+                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                    onClick={() => setShowApiKey((current) => !current)}
+                  >
+                    {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </InlineField>
+            {apiKeyError && (
+              <p id="switch-api-key-error" className="mt-1.5 pl-27 text-sm text-destructive" role="alert">
+                {apiKeyError}
+              </p>
+            )}
+          </div>
 
-      <Button
-        type="submit"
-        size="sm"
-        disabled={busy || (targetProvider !== "openai_compatible" && !apiKey.trim())}
-      >
-        {busy ? (
-          <>
-            <Spinner className="mr-2" />
-            Switching…
-          </>
-        ) : (
-          `Switch to ${formatProviderLabel(targetProvider)}`
-        )}
-      </Button>
+          {targetProvider === "openrouter" ? (
+            <FormField
+              id="switch-custom-model"
+              density="compact"
+              label={
+                <>
+                  Custom model ID{" "}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </>
+              }
+              footer={
+                customModelError ? (
+                  <p id="switch-custom-model-error" className="text-sm text-destructive" role="alert">
+                    {customModelError}
+                  </p>
+                ) : (
+                  <p id="switch-custom-model-hint" className="text-xs text-muted-foreground">
+                    Overrides the catalog selection when set.
+                  </p>
+                )
+              }
+            >
+              <InputGroup>
+                <InputGroupInput
+                  id="switch-custom-model"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="anthropic/claude-sonnet-4-6"
+                  value={customModel}
+                  disabled={busy}
+                  aria-invalid={customModelError != null}
+                  aria-describedby={
+                    customModelError ? "switch-custom-model-error" : "switch-custom-model-hint"
+                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setCustomModel(value);
+                    setCustomModelError(validateCustomOpenRouterModel(value));
+                  }}
+                />
+              </InputGroup>
+            </FormField>
+          ) : null}
+
+          {targetProvider === "openai_compatible" ? (
+            <CustomCompatibleProviderFields
+              displayName={displayName}
+              baseUrl={baseUrl}
+              apiKey={apiKey}
+              customModels={customModels}
+              disabled={busy}
+              density="compact"
+              displayNameError={displayNameError}
+              baseUrlError={baseUrlError}
+              modelsError={modelsError}
+              onDisplayNameChange={setDisplayName}
+              onBaseUrlChange={setBaseUrl}
+              onCustomModelsChange={setCustomModels}
+            />
+          ) : null}
+
+          {localError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {localError}
+            </p>
+          ) : null}
+
+          <Button
+            type="submit"
+            size="sm"
+            disabled={busy || (targetProvider !== "openai_compatible" && !apiKey.trim())}
+          >
+            {busy ? (
+              <>
+                <Spinner className="mr-2" />
+                Switching…
+              </>
+            ) : (
+              `Switch to ${formatProviderLabel(targetProvider)}`
+            )}
+          </Button>
+        </>
+      )}
     </form>
   );
 }
@@ -1025,7 +1099,7 @@ function ConnectedProviderSection({
             disabled={modelBusy || configuredModels.length === 0}
             onValueChange={(value) => onModelDraftChange(value != null ? String(value) : "")}
           >
-            <SelectTrigger id="connected-model" className="w-[11rem] sm:w-[13rem]">
+            <SelectTrigger id="connected-model" className="w-44 sm:w-52">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent align="end">

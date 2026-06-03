@@ -38,8 +38,8 @@ import type {
   ThinkingSettingsResponse,
   UpdateThinkingRequest,
   UserProviderConfig,
-  type ProviderChatOptions,
-  type ProviderClient,
+  ProviderChatOptions,
+  ProviderClient,
 } from "@tinyclaw/core";
 import {
   isValidBaseUrl,
@@ -741,10 +741,13 @@ export class AgentService {
       throw new Error("API key is required.");
     }
 
-    const compatibleFields =
+    const compatibleFields: Pick<
+      UserProviderConfig,
+      "displayName" | "baseUrl" | "customModels"
+    > =
       provider === "openai_compatible"
         ? this.buildCompatibleProviderFields(request)
-        : {};
+        : this.buildNativeBaseUrlFields(request);
 
     const customModels = compatibleFields.customModels;
     const selectedModel = request.model?.trim()
@@ -809,6 +812,22 @@ export class AgentService {
     }
 
     return { displayName, baseUrl, customModels };
+  }
+
+  private buildNativeBaseUrlFields(
+    request: ConfigureProviderRequest,
+  ): Pick<UserProviderConfig, "baseUrl"> {
+    const raw = request.baseUrl?.trim();
+    if (!raw) {
+      return {};
+    }
+
+    const normalized = normalizeBaseUrl(raw);
+    if (!isValidBaseUrl(normalized)) {
+      throw new Error("A valid http(s) base URL is required.");
+    }
+
+    return { baseUrl: normalized };
   }
 
   async listProfiles(): Promise<ListProfilesResponse> {
@@ -966,7 +985,7 @@ export class AgentService {
           )
         : null;
 
-    this.syncUsagePricingContext(providerName, modelId);
+    this.syncUsagePricingContext(providerName);
 
     const trackedProvider =
       provider && this.llmUsageTracker && modelId
@@ -981,7 +1000,6 @@ export class AgentService {
 
   private syncUsagePricingContext(
     provider: ReturnType<typeof detectProvider>,
-    modelId: string | null,
   ): void {
     this.llmUsageTracker?.setPricingContext({
       provider,

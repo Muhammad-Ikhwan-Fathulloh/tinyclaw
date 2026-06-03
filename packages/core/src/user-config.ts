@@ -100,12 +100,14 @@ export async function loadUserConfig(): Promise<UserProviderConfig | null> {
   const model = values.model?.trim();
   const timezone = readTimezone(values);
   const thinking = readThinkingSettings(values);
+  const baseUrl = readBaseUrl(values);
   const compatible = readCompatibleProviderFields(provider, values);
 
   return {
     provider,
     apiKey,
     ...(model ? { model } : {}),
+    ...(baseUrl ? { baseUrl } : {}),
     ...compatible,
     ...(timezone ? { timezone } : {}),
     thinkingEnabled: thinking.enabled,
@@ -298,10 +300,14 @@ function readTimezone(values: Record<string, string>): string | undefined {
   return timezone && isValidTimezone(timezone) ? timezone : undefined;
 }
 
+function readBaseUrl(values: Record<string, string>): string | undefined {
+  return values.base_url?.trim() ? normalizeBaseUrl(values.base_url) : undefined;
+}
+
 function readCompatibleProviderFields(
   provider: UserProviderName,
   values: Record<string, string>,
-): Pick<UserProviderConfig, "displayName" | "baseUrl" | "customModels"> {
+): Pick<UserProviderConfig, "displayName" | "customModels"> {
   if (provider !== "openai_compatible") {
     return {};
   }
@@ -309,14 +315,10 @@ function readCompatibleProviderFields(
   const displayName = values.display_name?.trim()
     ? validateDisplayName(values.display_name)
     : undefined;
-  const baseUrl = values.base_url?.trim()
-    ? normalizeBaseUrl(values.base_url)
-    : undefined;
   const customModels = parseCustomModelsJson(values.models_json);
 
   return {
     ...(displayName ? { displayName } : {}),
-    ...(baseUrl ? { baseUrl } : {}),
     ...(customModels ? { customModels } : {}),
   };
 }

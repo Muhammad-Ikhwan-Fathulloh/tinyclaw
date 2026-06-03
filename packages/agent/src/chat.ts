@@ -1,4 +1,5 @@
 import type {
+  AgentChannel,
   AutomationDefinition,
   ChatMessage,
   CompactionResponse,
@@ -12,7 +13,7 @@ import type {
 
 export interface AgentRequest {
   prompt: string;
-  channel: "web" | "cli" | "telegram" | "automation";
+  channel: AgentChannel;
 }
 
 export interface AgentDependencies {
