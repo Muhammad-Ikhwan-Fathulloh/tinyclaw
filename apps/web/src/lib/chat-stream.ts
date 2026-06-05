@@ -1,4 +1,5 @@
 import type { ChatStatus } from "ai";
+import { nanoid } from "nanoid";
 import type { Dispatch, SetStateAction } from "react";
 import type { StreamHandlers } from "@tinyclaw/client";
 import type { ChatListItem } from "@/lib/chat-history";
@@ -191,7 +192,7 @@ export function buildStreamHandlers(
         }
 
         next.push({
-          id: crypto.randomUUID(),
+          id: nanoid(),
           role: "assistant",
           content: delta,
           streaming: true,
@@ -248,14 +249,14 @@ export function appendOutgoingMessages(
   setMessages((current) => [
     ...current,
     {
-      id: crypto.randomUUID(),
+      id: nanoid(),
       role: "user",
       content: text,
       images: images.length > 0 ? images : undefined,
       documents: documents.length > 0 ? documents : undefined,
     },
     {
-      id: crypto.randomUUID(),
+      id: nanoid(),
       role: "assistant",
       content: "",
       streaming: true,
