@@ -25,7 +25,7 @@ bun install
 bun run dev:web
 ```
 
-Visit web dashboard: http://localhost:300
+Visit web dashboard: http://localhost:3000
 
 Or run the server on its own:
 
