@@ -487,12 +487,6 @@ export class AgentService {
 
     const sessions = await this.db.listSessionSummaries(profileId, channel);
 
-    for (const session of sessions) {
-      if (session.title === null && session.messageCount >= 2) {
-        this.sessionTitleService.scheduleSessionTitleGeneration(session.id);
-      }
-    }
-
     return {
       sessions: sessions.map((session) => ({
         id: session.id,
