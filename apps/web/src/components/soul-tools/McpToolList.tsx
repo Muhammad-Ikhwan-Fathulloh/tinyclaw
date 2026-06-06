@@ -147,7 +147,7 @@ export function McpToolList({ tools, className, searchable = true }: McpToolList
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search tools…"
-            className="h-8 pl-8 text-sm"
+            className="h-8 border-border/60 bg-muted/20 pl-8 text-sm shadow-none focus-visible:border-foreground/20 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-foreground/10 dark:bg-muted/15 dark:focus-visible:bg-background/60"
           />
         </div>
       ) : null}
