@@ -48,6 +48,7 @@ export const openApiSchemas = {
       "createdAt",
       "updatedAt",
       "messageCount",
+      "title",
       "preview",
     ],
     properties: {
@@ -57,6 +58,7 @@ export const openApiSchemas = {
       createdAt: { type: "string" },
       updatedAt: { type: "string" },
       messageCount: { type: "integer" },
+      title: { type: "string", nullable: true },
       preview: { type: "string", nullable: true },
     },
   },

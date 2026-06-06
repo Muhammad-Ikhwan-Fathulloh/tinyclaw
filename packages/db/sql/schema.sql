@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   profile_id TEXT NOT NULL,
   channel TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  title TEXT,
   FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
 );
 

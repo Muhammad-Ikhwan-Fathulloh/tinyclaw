@@ -260,6 +260,10 @@ export function useSessionsQuery(profileId: string, channel: AgentChannel = "web
     queryKey: queryKeys.sessions(profileId, channel),
     queryFn: async () => (await client.listSessions(profileId, channel)).sessions,
     enabled: Boolean(profileId),
+    refetchInterval: (query) =>
+      query.state.data?.some((session) => session.title == null && session.messageCount >= 2)
+        ? 3000
+        : false,
   });
 }
 

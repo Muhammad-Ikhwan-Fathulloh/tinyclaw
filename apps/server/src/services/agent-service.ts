@@ -106,6 +106,7 @@ import { buildMcpToolDefinitions } from "./mcp-tool-bridge";
 import type { McpClientManager } from "./mcp-client-manager";
 import type { McpService } from "./mcp-service";
 import { ProfileService } from "./profile-service";
+import { SessionTitleService } from "./session-title-service";
 import { SuperBotSessionState } from "./super-bot-session-state";
 import { resolveToolsFromStorage } from "./tool-resolver";
 import { wrapProviderWithUsageTracking } from "../providers/usage-tracking";
@@ -130,6 +131,7 @@ export class AgentService {
   private mcpClientManager: McpClientManager | null = null;
   private mcpService: McpService | null = null;
   private readonly sessions = new Map<string, StoredSession>();
+  private readonly sessionTitleService: SessionTitleService;
   private _providerConfigured: boolean;
 
   constructor(
@@ -141,6 +143,11 @@ export class AgentService {
     this.userConfig = userConfig;
     this.db = db;
     this.profileService = new ProfileService(db);
+    this.sessionTitleService = new SessionTitleService(
+      db,
+      () => this.userConfig,
+      () => this._providerConfigured,
+    );
     this.superBotTools = createSuperBotTools(this.profileService, this.superBotSessionState);
     this._providerConfigured = provider !== null;
     this.harness = this.createHarness(provider);
@@ -452,6 +459,7 @@ export class AgentService {
       profileId,
       channel,
       createdAt: new Date().toISOString(),
+      title: null,
     });
 
     const session = await this.buildChatSession(channel, profileId, sessionId);
@@ -479,6 +487,12 @@ export class AgentService {
 
     const sessions = await this.db.listSessionSummaries(profileId, channel);
 
+    for (const session of sessions) {
+      if (session.title === null && session.messageCount >= 2) {
+        this.sessionTitleService.scheduleSessionTitleGeneration(session.id);
+      }
+    }
+
     return {
       sessions: sessions.map((session) => ({
         id: session.id,
@@ -487,9 +501,14 @@ export class AgentService {
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         messageCount: session.messageCount,
+        title: session.title,
         preview: session.preview,
       })),
     };
+  }
+
+  scheduleSessionTitleGeneration(sessionId: string): void {
+    this.sessionTitleService.scheduleSessionTitleGeneration(sessionId);
   }
 
   async purgeSession(sessionId: string): Promise<boolean> {

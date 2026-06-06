@@ -544,10 +544,13 @@ export function createApp(options: ServerOptions) {
             request.headers.get("Accept")?.includes("text/event-stream");
 
           if (wantsStream) {
-            return streamMessage(session, input);
+            return streamMessage(session, input, () => {
+              agent.scheduleSessionTitleGeneration(sessionId);
+            });
           }
 
           const reply = await session.send(input);
+          agent.scheduleSessionTitleGeneration(sessionId);
 
           return json<SendMessageResponse>({ reply });
         }
@@ -846,7 +849,11 @@ function errorResponse(message: string, status: number): Response {
   return Response.json({ error: message } satisfies ApiErrorResponse, { status });
 }
 
-function streamMessage(session: AgentChatSession, input: SendMessageInput): Response {
+function streamMessage(
+  session: AgentChatSession,
+  input: SendMessageInput,
+  onComplete?: () => void,
+): Response {
   const encoder = new TextEncoder();
   const keepaliveIntervalMs = 4_000;
 
@@ -892,6 +899,7 @@ function streamMessage(session: AgentChatSession, input: SendMessageInput): Resp
       } finally {
         clearInterval(keepalive);
         controller.close();
+        onComplete?.();
       }
     },
   });

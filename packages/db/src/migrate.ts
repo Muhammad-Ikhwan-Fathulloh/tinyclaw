@@ -13,6 +13,7 @@ export function migrateDatabase(db: Database): void {
   db.exec(sql);
   migrateAutomationsTable(db);
   migrateTasksTable(db);
+  migrateSessionsTable(db);
   migrateMcpTables(db);
 }
 
@@ -69,6 +70,19 @@ function migrateTasksTable(db: Database): void {
   if (!columnNames.has("session_id")) {
     db.exec(`
       ALTER TABLE tasks ADD COLUMN session_id TEXT REFERENCES sessions (id) ON DELETE SET NULL;
+    `);
+  }
+}
+
+function migrateSessionsTable(db: Database): void {
+  const columns = db
+    .prepare("PRAGMA table_info(sessions)")
+    .all() as Array<{ name: string }>;
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (!columnNames.has("title")) {
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN title TEXT;
     `);
   }
 }

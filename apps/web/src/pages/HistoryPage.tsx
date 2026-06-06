@@ -103,8 +103,13 @@ export function HistoryPage() {
     }
 
     return sessions.filter((session) => {
+      const title = session.title?.trim().toLowerCase() ?? "";
       const preview = session.preview?.trim().toLowerCase() ?? "";
-      return preview.includes(query) || session.id.toLowerCase().includes(query);
+      return (
+        title.includes(query) ||
+        preview.includes(query) ||
+        session.id.toLowerCase().includes(query)
+      );
     });
   }, [searchQuery, sessions, trimmedSearch]);
 
@@ -286,9 +291,9 @@ export function HistoryPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {deleteTarget?.preview?.trim() ? (
+          {deleteTarget ? (
             <p className="text-sm text-muted-foreground line-clamp-2">
-              {deleteTarget.preview.trim()}
+              {formatSessionTitle(deleteTarget)}
             </p>
           ) : null}
 
@@ -327,7 +332,7 @@ function SessionRow({
   onOpen: () => void;
   onDelete: () => void;
 }) {
-  const title = session.preview?.trim() || "Untitled conversation";
+  const title = formatSessionTitle(session);
 
   return (
     <div className="group flex items-center gap-2 px-4 py-3 hover:bg-muted/40">
@@ -363,6 +368,10 @@ function SessionRow({
       </Button>
     </div>
   );
+}
+
+function formatSessionTitle(session: SessionSummary): string {
+  return session.title?.trim() || "Untitled";
 }
 
 function EmptyMessage({

@@ -59,3 +59,8 @@ export type {
 export type { CompactionConfig } from "./history-compaction";
 export type { DraftTaskPromptInput } from "./task-prompt";
 export { draftTaskPromptFromFields } from "./task-prompt";
+export {
+  buildSessionTitlePrompt,
+  generateSessionTitleFromMessages,
+  normalizeSessionTitle,
+} from "./session-title";

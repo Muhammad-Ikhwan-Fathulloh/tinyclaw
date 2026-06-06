@@ -71,6 +71,7 @@ interface SessionRow {
   profile_id: string;
   channel: string;
   created_at: string;
+  title: string | null;
 }
 
 interface SessionMessageRow {
@@ -111,6 +112,7 @@ interface SessionSummaryRow {
   created_at: string;
   updated_at: string;
   message_count: number;
+  title: string | null;
   first_user_payload: string | null;
 }
 
@@ -245,6 +247,9 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
       channel = excluded.channel
   `);
   const deleteSessionStmt = db.prepare("DELETE FROM sessions WHERE id = ?");
+  const updateSessionTitleStmt = db.prepare(`
+    UPDATE sessions SET title = ? WHERE id = ? AND title IS NULL
+  `);
 
   const listMessagesForSessionStmt = db.prepare(`
     SELECT * FROM session_messages
@@ -264,6 +269,7 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
       s.profile_id,
       s.channel,
       s.created_at,
+      s.title,
       COUNT(m.id) AS message_count,
       COALESCE(MAX(m.created_at), s.created_at) AS updated_at,
       (
@@ -540,6 +546,11 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
       );
     },
 
+    async updateSessionTitle(sessionId, title) {
+      const result = updateSessionTitleStmt.run(title, sessionId);
+      return result.changes > 0;
+    },
+
     async deleteSession(id) {
       const result = deleteSessionStmt.run(id);
       return result.changes > 0;
@@ -789,6 +800,7 @@ function toSessionRecord(row: SessionRow): StoredSessionRecord {
     profileId: row.profile_id,
     channel: row.channel,
     createdAt: row.created_at,
+    title: row.title ?? null,
   };
 }
 
@@ -856,6 +868,7 @@ function toSessionSummaryRecord(row: SessionSummaryRow): StoredSessionSummaryRec
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     messageCount: row.message_count,
+    title: row.title ?? null,
     preview: previewFromFirstUserPayload(row.first_user_payload),
   };
 }

@@ -123,6 +123,7 @@ export interface SessionSummary {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  title: string | null;
   preview: string | null;
 }
 

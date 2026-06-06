@@ -187,6 +187,17 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
       sessions.set(record.id, record);
     },
 
+    async updateSessionTitle(sessionId, title) {
+      const session = sessions.get(sessionId);
+
+      if (!session || session.title !== null) {
+        return false;
+      }
+
+      sessions.set(sessionId, { ...session, title });
+      return true;
+    },
+
     async deleteSession(id) {
       sessionMessages.delete(id);
       return sessions.delete(id);
@@ -399,6 +410,7 @@ function summarizeSession(
     createdAt: session.createdAt,
     updatedAt,
     messageCount: sorted.length,
+    title: session.title ?? null,
     preview,
   };
 }

@@ -46,6 +46,7 @@ export interface StoredSessionRecord {
   profileId: string;
   channel: string;
   createdAt: string;
+  title: string | null;
 }
 
 export interface StoredSessionMessageRecord {
@@ -63,6 +64,7 @@ export interface StoredSessionSummaryRecord {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  title: string | null;
   preview: string | null;
 }
 
@@ -163,6 +165,7 @@ export interface DatabaseAdapter {
   ): Promise<StoredSessionSummaryRecord[]>;
   getSession(id: string): Promise<StoredSessionRecord | null>;
   upsertSession(record: StoredSessionRecord): Promise<void>;
+  updateSessionTitle(sessionId: string, title: string): Promise<boolean>;
   deleteSession(id: string): Promise<boolean>;
 
   listMessagesForSession(sessionId: string): Promise<StoredSessionMessageRecord[]>;
