@@ -23,11 +23,29 @@ See [README.md](./README.md) for first-run provider setup and CLI usage.
 
 The [Dockerfile](./Dockerfile) builds a single image that runs the HTTP server, web dashboard, and in-process automation/task workers together. SQLite uses Bun’s built-in driver (`bun:sqlite`); no extra native database packages are required.
 
-### Build
+### Pull
+
+Pre-built images are published to [GitHub Container Registry](https://github.com/ahmadrosid/tinyclaw/pkgs/container/tinyclaw) on every push to `main` and on version tags (`v1.0.0`, etc.):
+
+```bash
+docker pull ghcr.io/ahmadrosid/tinyclaw:latest
+```
+
+For a specific release (tag `v1.0.0` → image tag `1.0.0`):
+
+```bash
+docker pull ghcr.io/ahmadrosid/tinyclaw:1.0.0
+```
+
+### Build from source
+
+For local or custom builds:
 
 ```bash
 docker build -t tinyclaw .
 ```
+
+Use the `tinyclaw` local tag in place of `ghcr.io/ahmadrosid/tinyclaw:latest` in the examples below.
 
 ### Run
 
@@ -38,7 +56,7 @@ docker run -d --name tinyclaw \
   -p 4310:4310 \
   -v tinyclaw-data:/app/data \
   -v tinyclaw-config:/root/.tinyclaw \
-  tinyclaw
+  ghcr.io/ahmadrosid/tinyclaw:latest
 ```
 
 Open `http://localhost:4310` for the web dashboard and API. The automation scheduler and task worker run inside the same server process (see **Status** in the sidebar).
@@ -61,7 +79,7 @@ The CLI needs an interactive terminal (`-it`). On first run with no API key conf
 docker run -it --rm \
   -v tinyclaw-data:/app/data \
   -v tinyclaw-config:/root/.tinyclaw \
-  tinyclaw bun run apps/cli/src/index.ts
+  ghcr.io/ahmadrosid/tinyclaw:latest bun run apps/cli/src/index.ts
 ```
 
 To use a server that is already running (on the host or in another container), set `TINYCLAW_SERVER_URL`:
@@ -69,7 +87,7 @@ To use a server that is already running (on the host or in another container), s
 ```bash
 docker run -it --rm \
   -e TINYCLAW_SERVER_URL=http://host.docker.internal:4310 \
-  tinyclaw bun run apps/cli/src/index.ts
+  ghcr.io/ahmadrosid/tinyclaw:latest bun run apps/cli/src/index.ts
 ```
 
 On Linux without `host.docker.internal`, use the host gateway IP (for example `172.17.0.1`).

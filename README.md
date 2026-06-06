@@ -47,6 +47,21 @@ On first run, the server prompts for a provider and API key if none is configure
 
 The server listens on `http://127.0.0.1:4310` by default. Interactive API docs are available at `http://127.0.0.1:4310/docs`.
 
+### Docker
+
+Pre-built images are published to GHCR. Pull and run without installing Bun locally:
+
+```bash
+docker pull ghcr.io/ahmadrosid/tinyclaw:latest
+docker run -d --name tinyclaw \
+  -p 4310:4310 \
+  -v tinyclaw-data:/app/data \
+  -v tinyclaw-config:/root/.tinyclaw \
+  ghcr.io/ahmadrosid/tinyclaw:latest
+```
+
+Open `http://localhost:4310` for the web dashboard. See [DEVELOPMENT.md — Docker](./DEVELOPMENT.md#docker) for release tags, volumes, CLI usage, and building from source.
+
 ## License
 
 MIT
