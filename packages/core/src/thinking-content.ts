@@ -24,7 +24,14 @@ function extractReasoningSummaryTexts(block: Record<string, unknown>): string[] 
 
   return block.summary
     .map((entry) => asRecord(entry))
-    .flatMap((entry) => (entry ? [readTrimmedText(entry.text)].filter(Boolean) : []));
+    .flatMap((entry) => {
+      if (!entry) {
+        return [];
+      }
+
+      const text = readTrimmedText(entry.text);
+      return text ? [text] : [];
+    });
 }
 
 export function extractThinkingFromAssistantMessage(
