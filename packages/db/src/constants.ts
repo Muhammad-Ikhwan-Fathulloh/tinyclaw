@@ -59,10 +59,6 @@ export async function run(input) {
 
 Be concise and practical. After tool calls, summarize results clearly for the user.`;
 
-export const LEGACY_SUPER_BOT_SYSTEM_PROMPTS = [
-  "You are the Super Bot orchestrator. You can create bot profiles, assign tools, and run shell commands with the bash tool.",
-] as const;
-
 /** Appended at runtime for Super Bot sessions so tool-authoring rules stay current. */
 export const SUPER_BOT_TOOL_AUTHORING_RULES = `## Tool authoring rules (mandatory)
 When creating a persistent tool:

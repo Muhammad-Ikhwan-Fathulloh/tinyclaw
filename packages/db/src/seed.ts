@@ -2,7 +2,6 @@ import { builtinTools } from "@tinyclaw/core";
 import { BASH_TOOL_ID, BUILTIN_TOOL_IDS } from "@tinyclaw/core/tools/protected";
 import {
   DEFAULT_PROFILE_ID,
-  LEGACY_SUPER_BOT_SYSTEM_PROMPTS,
   SUPER_BOT_PROFILE_ID,
   SUPER_BOT_SYSTEM_PROMPT,
 } from "./constants";
@@ -143,10 +142,7 @@ export async function ensureSuperBotSystemPrompt(db: DatabaseAdapter): Promise<v
 
   if (
     currentPrompt !== SUPER_BOT_SYSTEM_PROMPT &&
-    !currentPrompt.includes("TinyClaw orchestrator") &&
-    !LEGACY_SUPER_BOT_SYSTEM_PROMPTS.includes(
-      currentPrompt as (typeof LEGACY_SUPER_BOT_SYSTEM_PROMPTS)[number],
-    )
+    !currentPrompt.includes("TinyClaw orchestrator")
   ) {
     return;
   }
