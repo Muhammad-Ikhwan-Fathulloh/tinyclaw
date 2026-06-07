@@ -1,7 +1,6 @@
 import type { ProfileSummary } from "@tinyclaw/core/contract";
 import {
   PlusIcon,
-  RefreshCwIcon,
   SearchIcon,
   Trash2Icon,
   UsersRoundIcon,
@@ -10,6 +9,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { McpServerAssignPicker } from "@/components/McpServerAssignPicker";
+import { ToolAssignDialog } from "@/components/ToolAssignDialog";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,7 +69,6 @@ export function ProfilesPage() {
     isLoading: profilesLoading,
     isFetching: profilesRefreshing,
     error: profilesError,
-    refetch: refetchProfiles,
   } = useProfilesQuery();
   const { data: allTools = [] } = useToolsQuery();
   const { data: allMcpServers = [] } = useMcpServersQuery();
@@ -108,7 +107,6 @@ export function ProfilesPage() {
   const [savedName, setSavedName] = useState("");
   const [savedPrompt, setSavedPrompt] = useState("");
   const [saveStatus, setSaveStatus] = useState<ProfileSaveStatus>("idle");
-  const [assignToolId, setAssignToolId] = useState("");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
@@ -497,16 +495,15 @@ export function ProfilesPage() {
     }
   }
 
-  async function handleAssignTool() {
-    if (!selectedId || !assignToolId) {
+  async function handleAssignTool(toolId: string) {
+    if (!selectedId) {
       return;
     }
 
     setError(null);
 
     try {
-      await assignMutation.mutateAsync({ profileId: selectedId, toolId: assignToolId });
-      setAssignToolId("");
+      await assignMutation.mutateAsync({ profileId: selectedId, toolId });
     } catch (err) {
       setError(formatError(err));
     }
@@ -600,14 +597,6 @@ export function ProfilesPage() {
     }
   }
 
-  async function refresh() {
-    setError(null);
-    await Promise.all([
-      refetchProfiles(),
-      selectedId ? refetchDetail() : Promise.resolve(),
-    ]);
-  }
-
   const profileSubtitle = detail
     ? [
         detail.id,
@@ -679,31 +668,15 @@ export function ProfilesPage() {
                 </SelectContent>
               </Select>
 
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy || refreshing}
-                  aria-label="Refresh profiles"
-                  onClick={() => void refresh()}
-                >
-                  {refreshing ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <RefreshCwIcon className="size-4" aria-hidden />
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <PlusIcon className="size-4" aria-hidden />
-                  New
-                </Button>
-              </div>
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy}
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="size-4" aria-hidden />
+                New
+              </Button>
             </div>
 
             {profiles.length > 0 ? (
@@ -722,31 +695,15 @@ export function ProfilesPage() {
               <div className="mb-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="type-section-title">Profiles</h2>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={busy || refreshing}
-                      aria-label="Refresh profiles"
-                      onClick={() => void refresh()}
-                    >
-                      {profilesRefreshing ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <RefreshCwIcon className="size-4" aria-hidden />
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => setCreateOpen(true)}
-                    >
-                      <PlusIcon className="size-4" aria-hidden />
-                      New
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <PlusIcon className="size-4" aria-hidden />
+                    New
+                  </Button>
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">{profilesTagline}</p>
               </div>
@@ -837,20 +794,6 @@ export function ProfilesPage() {
                     </div>
 
                     <div className="hidden shrink-0 flex-wrap items-center gap-2 lg:flex">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={busy || refreshing}
-                        onClick={() => void refresh()}
-                      >
-                        {refreshing ? (
-                          <Spinner className="size-4" />
-                        ) : (
-                          <RefreshCwIcon className="size-4" aria-hidden />
-                        )}
-                        Refresh
-                      </Button>
                       {!detail.isSuper ? (
                         <Button
                           type="button"
@@ -960,35 +903,11 @@ export function ProfilesPage() {
                               : `${detail.tools.length} assigned`}
                           </p>
                         </div>
-                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                          <Select
-                            value={assignToolId}
-                            disabled={busy || availableTools.length === 0}
-                            onValueChange={(value) =>
-                              setAssignToolId(value != null ? String(value) : "")
-                            }
-                          >
-                            <SelectTrigger className="w-full sm:w-44" aria-label="Tool to assign">
-                              <SelectValue placeholder="Assign tool…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableTools.map((tool) => (
-                                <SelectItem key={tool.id} value={tool.id}>
-                                  {tool.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={busy || !assignToolId}
-                            onClick={() => void handleAssignTool()}
-                          >
-                            Assign
-                          </Button>
-                        </div>
+                        <ToolAssignDialog
+                          tools={availableTools}
+                          disabled={busy}
+                          onAssign={handleAssignTool}
+                        />
                       </div>
 
                       {detail.tools.length === 0 ? (

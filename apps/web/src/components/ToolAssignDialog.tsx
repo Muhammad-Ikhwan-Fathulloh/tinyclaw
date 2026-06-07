@@ -1,4 +1,4 @@
-import type { McpServerSummary } from "@tinyclaw/core/contract";
+import type { ToolSummary } from "@tinyclaw/core/contract";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,24 +17,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
-interface McpServerAssignPickerProps {
-  servers: McpServerSummary[];
+interface ToolAssignDialogProps {
+  tools: ToolSummary[];
   disabled?: boolean;
-  onAssign: (serverId: string) => void | Promise<void>;
-  className?: string;
+  onAssign: (toolId: string) => void | Promise<void>;
 }
 
-export function McpServerAssignPicker({
-  servers,
+export function ToolAssignDialog({
+  tools,
   disabled = false,
   onAssign,
-  className,
-}: McpServerAssignPickerProps) {
+}: ToolAssignDialogProps) {
   const [open, setOpen] = useState(false);
 
-  if (servers.length === 0) {
+  if (tools.length === 0) {
     return null;
   }
 
@@ -45,11 +42,10 @@ export function McpServerAssignPicker({
         variant="outline"
         size="sm"
         disabled={disabled}
-        className={cn("w-full sm:w-auto", className)}
         onClick={() => setOpen(true)}
       >
         <PlusIcon className="size-4" aria-hidden />
-        Add MCP server
+        Add tool
       </Button>
 
       <Dialog
@@ -60,35 +56,34 @@ export function McpServerAssignPicker({
       >
         <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
           <DialogHeader className="gap-1 border-b border-border px-6 py-4 text-left">
-            <DialogTitle>Add MCP server</DialogTitle>
+            <DialogTitle>Add tool</DialogTitle>
             <DialogDescription>
-              Choose an MCP server to allow for this profile.
+              Choose a tool to allow for this profile.
             </DialogDescription>
           </DialogHeader>
 
           <Command className="rounded-none bg-transparent">
             <div className="border-b border-border/60 px-2 py-2 [&_[data-slot=command-input-wrapper]]:p-0">
-              <CommandInput placeholder="Search MCP servers…" />
+              <CommandInput placeholder="Search tools…" />
             </div>
             <CommandList className="max-h-72 p-1">
-              <CommandEmpty>No MCP servers found.</CommandEmpty>
+              <CommandEmpty>No tools found.</CommandEmpty>
               <CommandGroup>
-                {servers.map((server) => (
+                {tools.map((tool) => (
                   <CommandItem
-                    key={server.id}
-                    value={server.name}
+                    key={tool.id}
+                    value={`${tool.name} ${tool.description}`}
                     disabled={disabled}
                     onSelect={() => {
-                      void onAssign(server.id);
+                      void onAssign(tool.id);
                       setOpen(false);
                     }}
                   >
                     <div className="min-w-0">
-                      <p>{server.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {server.transport} · {server.toolCount} tool
-                        {server.toolCount === 1 ? "" : "s"}
-                      </p>
+                      <p>{tool.name}</p>
+                      {tool.description ? (
+                        <p className="truncate text-xs text-muted-foreground">{tool.description}</p>
+                      ) : null}
                     </div>
                   </CommandItem>
                 ))}
