@@ -1,3 +1,4 @@
+import { hasActiveAgentTodos } from "@tinyclaw/core/agent-todo";
 import type { AgentTodo, ProfileSummary } from "@tinyclaw/core/contract";
 import type { ChatStatus } from "ai";
 import type { FileUIPart } from "ai";
@@ -99,7 +100,7 @@ export function ChatComposer(props: ChatComposerProps) {
   } = props;
 
   const isMinimal = props.variant === "minimal";
-  const hasTodos = todos.length > 0;
+  const hasTodos = hasActiveAgentTodos(todos);
   const shellClass = isMinimal ? composerShellCompactClass : composerShellClass;
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const displayError = error ?? attachmentError;

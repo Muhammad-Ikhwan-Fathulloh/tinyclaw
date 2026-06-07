@@ -487,7 +487,7 @@ export class AgentService {
       return null;
     }
 
-    return this.agentTodoState.list(sessionId);
+    return this.agentTodoState.listActive(sessionId);
   }
 
   async getSessionMessages(sessionId: string): Promise<ChatMessage[] | null> {

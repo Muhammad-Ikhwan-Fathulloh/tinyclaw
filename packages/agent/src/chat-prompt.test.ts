@@ -34,4 +34,5 @@ test("buildChatSystemPrompt includes todo_write guidance when tool is available"
 
   expect(prompt).toContain("todo_write");
   expect(prompt).toContain("merge: true");
+  expect(prompt).toContain("continue unfinished tasks");
 });

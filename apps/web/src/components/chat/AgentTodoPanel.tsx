@@ -1,3 +1,4 @@
+import { hasActiveAgentTodos } from "@tinyclaw/core/agent-todo";
 import type { AgentTodo } from "@tinyclaw/core/contract";
 import {
   CheckCircle2Icon,
@@ -22,7 +23,7 @@ export function AgentTodoPanel({
 }: AgentTodoPanelProps) {
   const [expanded, setExpanded] = useState(true);
 
-  if (todos.length === 0) {
+  if (!hasActiveAgentTodos(todos)) {
     return null;
   }
 

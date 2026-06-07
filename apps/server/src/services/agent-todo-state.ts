@@ -1,4 +1,9 @@
-import type { AgentTodo, AgentTodoStatus } from "@tinyclaw/core";
+import {
+  finalizeAgentTodosIfComplete,
+  hasActiveAgentTodos,
+  type AgentTodo,
+  type AgentTodoStatus,
+} from "@tinyclaw/core";
 import type { DatabaseAdapter } from "@tinyclaw/db";
 
 const MAX_TODOS = 20;
@@ -105,13 +110,29 @@ export class AgentTodoState {
       );
     }
 
+    next = finalizeAgentTodosIfComplete(next);
+
     this.cache.set(sessionId, next);
     await this.db.updateSessionTodos(sessionId, next);
     return [...next];
   }
 
-  async formatForPrompt(sessionId: string): Promise<string> {
+  async listActive(sessionId: string): Promise<AgentTodo[]> {
     const todos = await this.list(sessionId);
+
+    if (!hasActiveAgentTodos(todos)) {
+      if (todos.length > 0) {
+        await this.clearTodos(sessionId);
+      }
+
+      return [];
+    }
+
+    return todos;
+  }
+
+  async formatForPrompt(sessionId: string): Promise<string> {
+    const todos = await this.listActive(sessionId);
 
     if (todos.length === 0) {
       return "";
@@ -129,10 +150,19 @@ export class AgentTodoState {
       return `- ${label} ${todo.content} (id: ${todo.id})`;
     });
 
-    return ["# Active Task Plan", ...lines].join("\n");
+    return [
+      "# Active Task Plan",
+      "Finish remaining pending or in_progress tasks before starting unrelated work unless the user redirects you.",
+      ...lines,
+    ].join("\n");
   }
 
   clearSession(sessionId: string): void {
     this.cache.delete(sessionId);
+  }
+
+  private async clearTodos(sessionId: string): Promise<void> {
+    this.cache.set(sessionId, []);
+    await this.db.updateSessionTodos(sessionId, []);
   }
 }

@@ -52,6 +52,7 @@ export function buildChatSystemPrompt(
         "For complex requests with 3+ distinct steps, call todo_write first to break the work into a task plan.",
         "Keep exactly one todo in_progress at a time, mark todos completed immediately after finishing them, and use merge: true for incremental updates.",
         "Use merge: false only when replacing the entire task plan.",
+        "When an active task plan is present in your context, continue unfinished tasks on the next turn before taking on new work unless the user changes direction.",
       );
     }
   }
