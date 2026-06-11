@@ -49,7 +49,6 @@ import {
   useCreateProfileMutation,
   useCreateSkillMutation,
   useDeleteProfileMutation,
-  useDeleteSkillMutation,
   useUnassignMcpServerMutation,
   useUnassignSkillMutation,
   useUnassignToolMutation,
@@ -103,7 +102,6 @@ export function ProfilesPage() {
   const createSkillMutation = useCreateSkillMutation();
   const assignSkillMutation = useAssignSkillMutation();
   const unassignSkillMutation = useUnassignSkillMutation();
-  const deleteSkillMutation = useDeleteSkillMutation();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const createAvatarInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -156,8 +154,7 @@ export function ProfilesPage() {
     createMcpMutation.isPending ||
     createSkillMutation.isPending ||
     assignSkillMutation.isPending ||
-    unassignSkillMutation.isPending ||
-    deleteSkillMutation.isPending;
+    unassignSkillMutation.isPending;
 
   const trimmedSearch = searchQuery.trim();
   const isSearching = trimmedSearch.length > 0;
@@ -587,28 +584,6 @@ export function ProfilesPage() {
     }
   }
 
-  async function handleDeleteSkill(skillId: string, options: { confirm?: boolean } = {}) {
-    const skill = allSkills.find((entry) => entry.id === skillId);
-
-    if (!skill) {
-      return;
-    }
-
-    if (options.confirm !== false) {
-      if (!window.confirm(`Delete skill "${skill.name}"? This removes it from every profile.`)) {
-        return;
-      }
-    }
-
-    setError(null);
-
-    try {
-      await deleteSkillMutation.mutateAsync(skillId);
-    } catch (err) {
-      setError(formatError(err));
-    }
-  }
-
   async function handleCreateSkill(request: CreateSkillRequest) {
     if (!selectedId) {
       return;
@@ -989,7 +964,7 @@ export function ProfilesPage() {
                                 size="icon-sm"
                                 className="shrink-0 text-muted-foreground/60 hover:text-destructive"
                                 disabled={busy}
-                                aria-label={`Remove ${tool.name}`}
+                                aria-label={`Delete ${tool.name}`}
                                 onClick={() =>
                                   setRemoveConfirm({ kind: "tool", id: tool.id, name: tool.name })
                                 }
@@ -1063,7 +1038,7 @@ export function ProfilesPage() {
                                 size="icon-sm"
                                 className="shrink-0 text-muted-foreground/60 hover:text-destructive"
                                 disabled={busy}
-                                aria-label={`Remove ${server.name}`}
+                                aria-label={`Delete ${server.name}`}
                                 onClick={() =>
                                   setRemoveConfirm({ kind: "mcp", id: server.id, name: server.name })
                                 }
@@ -1102,7 +1077,6 @@ export function ProfilesPage() {
                             disabled={busy}
                             buttonLabel="Manage skills"
                             onAssign={handleAssignSkill}
-                            onDelete={handleDeleteSkill}
                           />
                         </div>
                       </div>
@@ -1146,7 +1120,7 @@ export function ProfilesPage() {
                                 size="icon-sm"
                                 className="shrink-0 text-muted-foreground/60 hover:text-destructive"
                                 disabled={busy}
-                                aria-label={`Remove ${skill.name}`}
+                                aria-label={`Delete ${skill.name}`}
                                 onClick={() =>
                                   setRemoveConfirm({ kind: "skill", id: skill.id, name: skill.name })
                                 }
@@ -1370,21 +1344,21 @@ export function ProfilesPage() {
           <DialogHeader className="gap-3">
             <DialogTitle>
               {removeConfirm?.kind === "mcp"
-                ? "Remove MCP server?"
+                ? "Delete MCP server?"
                 : removeConfirm?.kind === "skill"
-                  ? "Remove skill?"
-                  : "Remove tool?"}
+                  ? "Delete skill?"
+                  : "Delete tool?"}
             </DialogTitle>
             <DialogDescription>
               {removeConfirm?.kind === "mcp"
-                ? `Remove "${removeConfirm.name}" from this profile? The server stays registered in Soul.`
+                ? `Delete "${removeConfirm.name}" from this profile? The server stays registered in Soul.`
                 : removeConfirm?.kind === "skill"
-                  ? `Remove "${removeConfirm.name}" from this profile? The skill stays available to assign again.`
-                  : `Remove "${removeConfirm?.name}" from this profile?`}
+                  ? `Delete "${removeConfirm.name}" from this profile? The skill stays available to assign again.`
+                  : `Delete "${removeConfirm?.name}" from this profile?`}
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 sm:flex-wrap sm:justify-end">
+          <DialogFooter className="mx-0 -mb-2 gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
             <Button
               type="button"
               variant="outline"
@@ -1393,23 +1367,9 @@ export function ProfilesPage() {
             >
               Cancel
             </Button>
-            {removeConfirm?.kind === "skill" ? (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={busy}
-                onClick={() =>
-                  void handleDeleteSkill(removeConfirm.id, { confirm: false }).then(() =>
-                    setRemoveConfirm(null),
-                  )
-                }
-              >
-                {deleteSkillMutation.isPending ? <Spinner className="size-4" /> : "Delete skill"}
-              </Button>
-            ) : null}
             <Button
               type="button"
-              variant={removeConfirm?.kind === "skill" ? "outline" : "destructive"}
+              variant="destructive"
               disabled={busy}
               onClick={() => void handleRemoveAssignmentConfirm()}
             >
@@ -1417,10 +1377,8 @@ export function ProfilesPage() {
               unassignMcpMutation.isPending ||
               unassignSkillMutation.isPending ? (
                 <Spinner className="size-4" />
-              ) : removeConfirm?.kind === "skill" ? (
-                "Remove from profile"
               ) : (
-                "Remove"
+                "Delete"
               )}
             </Button>
           </DialogFooter>
