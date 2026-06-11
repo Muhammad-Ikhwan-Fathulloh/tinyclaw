@@ -65,4 +65,24 @@ describe("SkillsService", () => {
     expect(matched).toContain("Active Skill: weather");
     expect(matched).toContain("Call the `weather` tool");
   });
+
+  test("creates profile skills and syncs them to the database", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    const service = new SkillsService(db);
+
+    const response = await service.createSkill({
+      name: "notes",
+      description: "Capture notes for the user.",
+      body: "Use this skill when the user asks to save a note.",
+      profileId: "profile_default",
+    });
+
+    expect(response.skill.name).toBe("notes");
+    expect(response.skill.sourcePath).toContain(
+      join("profiles", "profile_default", "skills", "notes"),
+    );
+
+    const listed = await service.listSkills();
+    expect(listed.skills.some((skill) => skill.name === "notes")).toBe(true);
+  });
 });

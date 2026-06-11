@@ -553,6 +553,14 @@ export interface AssignSkillRequest {
   skillId: string;
 }
 
+export interface CreateSkillRequest {
+  name: string;
+  description: string;
+  body?: string;
+  disableModelInvocation?: boolean;
+  profileId?: string;
+}
+
 export interface SyncSkillsResponse {
   discovered: number;
   created: number;

@@ -270,6 +270,17 @@ export function useUnassignMcpServerMutation() {
   });
 }
 
+export function useCreateSkillMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: Parameters<typeof client.createSkill>[0]) => client.createSkill(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
+    },
+  });
+}
+
 export function useSyncSkillsMutation() {
   const queryClient = useQueryClient();
 

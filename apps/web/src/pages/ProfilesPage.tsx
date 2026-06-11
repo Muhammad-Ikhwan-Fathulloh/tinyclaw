@@ -1,4 +1,4 @@
-import type { CreateMcpServerRequest, ProfileSummary } from "@tinyclaw/core/contract";
+import type { CreateMcpServerRequest, CreateSkillRequest, ProfileSummary } from "@tinyclaw/core/contract";
 import {
   CameraIcon,
   PlusIcon,
@@ -13,6 +13,7 @@ import { useSearchParams } from "react-router-dom";
 import { McpServerAssignPicker } from "@/components/McpServerAssignPicker";
 import { McpServerDialog } from "@/components/soul-tools/mcp-tab/McpServerDialog";
 import { SkillAssignPicker } from "@/components/SkillAssignPicker";
+import { SkillCreateDialog } from "@/components/SkillCreateDialog";
 import { ToolAssignDialog } from "@/components/ToolAssignDialog";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ import {
   useAssignToolMutation,
   useCreateMcpServerMutation,
   useCreateProfileMutation,
+  useCreateSkillMutation,
   useDeleteProfileMutation,
   useSyncSkillsMutation,
   useUnassignMcpServerMutation,
@@ -99,6 +101,7 @@ export function ProfilesPage() {
   const assignMcpMutation = useAssignMcpServerMutation();
   const unassignMcpMutation = useUnassignMcpServerMutation();
   const createMcpMutation = useCreateMcpServerMutation();
+  const createSkillMutation = useCreateSkillMutation();
   const syncSkillsMutation = useSyncSkillsMutation();
   const assignSkillMutation = useAssignSkillMutation();
   const unassignSkillMutation = useUnassignSkillMutation();
@@ -109,6 +112,7 @@ export function ProfilesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState<RemoveAssignmentTarget | null>(null);
   const [mcpCreateOpen, setMcpCreateOpen] = useState(false);
+  const [skillCreateOpen, setSkillCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [createName, setCreateName] = useState("");
   const [createPrompt, setCreatePrompt] = useState(defaultCreatePrompt);
@@ -151,6 +155,7 @@ export function ProfilesPage() {
     assignMcpMutation.isPending ||
     unassignMcpMutation.isPending ||
     createMcpMutation.isPending ||
+    createSkillMutation.isPending ||
     syncSkillsMutation.isPending ||
     assignSkillMutation.isPending ||
     unassignSkillMutation.isPending;
@@ -592,6 +597,27 @@ export function ProfilesPage() {
     }
   }
 
+  async function handleCreateSkill(request: CreateSkillRequest) {
+    if (!selectedId) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const response = await createSkillMutation.mutateAsync(request);
+      await assignSkillMutation.mutateAsync({
+        profileId: selectedId,
+        skillId: response.skill.id,
+      });
+      setSkillCreateOpen(false);
+    } catch (err) {
+      const message = formatError(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
   async function handleRemoveAssignmentConfirm() {
     if (!selectedId || !removeConfirm) {
       return;
@@ -935,11 +961,13 @@ export function ProfilesPage() {
                           {detail.tools.map((tool) => (
                             <li
                               key={tool.id}
-                              className="flex items-start justify-between gap-3 px-4 py-3 first:rounded-t-md last:rounded-b-md"
+                              className="flex items-center justify-between gap-2 px-3 py-2 first:rounded-t-md last:rounded-b-md"
                             >
                               <div className="min-w-0">
-                                <p className="text-sm text-foreground">{tool.name}</p>
-                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                <p className="truncate text-sm font-medium leading-tight text-foreground">
+                                  {tool.name}
+                                </p>
+                                <p className="mt-0.5 line-clamp-1 text-xs leading-snug text-muted-foreground">
                                   {tool.description}
                                 </p>
                               </div>
@@ -1006,11 +1034,13 @@ export function ProfilesPage() {
                           {detail.mcpServers.map((server) => (
                             <li
                               key={server.id}
-                              className="flex items-start justify-between gap-3 px-4 py-3 first:rounded-t-md last:rounded-b-md"
+                              className="flex items-center justify-between gap-2 px-3 py-2 first:rounded-t-md last:rounded-b-md"
                             >
                               <div className="min-w-0">
-                                <p className="text-sm text-foreground">{server.name}</p>
-                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                <p className="truncate text-sm font-medium leading-tight text-foreground">
+                                  {server.name}
+                                </p>
+                                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                                   {server.transport} · {server.toolCount} tool
                                   {server.toolCount === 1 ? "" : "s"}
                                 </p>
@@ -1050,6 +1080,16 @@ export function ProfilesPage() {
                             variant="outline"
                             size="sm"
                             disabled={busy}
+                            onClick={() => setSkillCreateOpen(true)}
+                          >
+                            <PlusIcon className="size-4" aria-hidden />
+                            Add skill
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
                             onClick={() => void handleSyncSkills()}
                           >
                             {syncSkillsMutation.isPending ? (
@@ -1062,6 +1102,7 @@ export function ProfilesPage() {
                           <SkillAssignPicker
                             skills={availableSkills}
                             disabled={busy}
+                            buttonLabel="Assign existing"
                             onAssign={handleAssignSkill}
                           />
                         </div>
@@ -1069,17 +1110,16 @@ export function ProfilesPage() {
 
                       {allSkills.length === 0 ? (
                         <p className="type-body text-xs">
-                          No skills discovered yet. Add folders with{" "}
+                          No skills discovered yet. Use Add skill to create one for this profile, or
+                          add folders with{" "}
                           <code className="rounded bg-muted px-1 py-0.5">SKILL.md</code> under{" "}
-                          <code className="rounded bg-muted px-1 py-0.5">~/.tinyclaw/agent/skills/</code>{" "}
-                          or{" "}
-                          <code className="rounded bg-muted px-1 py-0.5">
-                            ~/.tinyclaw/profiles/&lt;profile&gt;/skills/
-                          </code>
+                          <code className="rounded bg-muted px-1 py-0.5">~/.tinyclaw/agent/skills/</code>
                           , then sync.
                         </p>
                       ) : detail.skills.length === 0 ? (
-                        <p className="type-body text-xs">No skills assigned.</p>
+                        <p className="type-body text-xs">
+                          No skills assigned. Add a new skill or assign an existing one.
+                        </p>
                       ) : (
                         <ul className="divide-y divide-border rounded-md border border-border">
                           {detail.skills.map((skill) => (
@@ -1303,6 +1343,14 @@ export function ProfilesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <SkillCreateDialog
+        open={skillCreateOpen}
+        busy={createSkillMutation.isPending || assignSkillMutation.isPending}
+        profileId={selectedId}
+        onOpenChange={setSkillCreateOpen}
+        onSubmit={handleCreateSkill}
+      />
 
       <McpServerDialog
         open={mcpCreateOpen}

@@ -13,6 +13,7 @@ import type {
   ChatMessage,
   CompactionResponse,
   CreateProfileRequest,
+  CreateSkillRequest,
   CreateToolRequest,
   InitSoulResponse,
   InitUserContextResponse,
@@ -1031,6 +1032,10 @@ export class AgentService {
 
   async getSkill(skillId: string): Promise<SkillResponse> {
     return this.requireSkillsService().getSkill(skillId);
+  }
+
+  async createSkill(request: CreateSkillRequest): Promise<SkillResponse> {
+    return this.requireSkillsService().createSkill(request);
   }
 
   async syncSkills(): Promise<SyncSkillsResponse> {

@@ -1,0 +1,47 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { composeSkillMarkdown, createSkillFile } from "./write";
+
+describe("createSkillFile", () => {
+  let configDir: string;
+
+  afterEach(async () => {
+    delete process.env.TINYCLAW_CONFIG_DIR;
+
+    if (configDir) {
+      await rm(configDir, { recursive: true, force: true });
+    }
+  });
+
+  test("writes a profile skill to ~/.tinyclaw/profiles/{id}/skills/", async () => {
+    configDir = await mkdtemp(join(tmpdir(), "tinyclaw-skill-write-"));
+    process.env.TINYCLAW_CONFIG_DIR = configDir;
+
+    const directory = await createSkillFile({
+      name: "weather",
+      description: "Get weather forecasts. Use when the user asks about weather.",
+      body: "Call the weather tool with a city name.",
+      profileId: "profile_default",
+    });
+
+    expect(directory).toBe(
+      join(configDir, "profiles", "profile_default", "skills", "weather"),
+    );
+
+    const content = await readFile(join(directory, "SKILL.md"), "utf8");
+    expect(content).toContain("name: weather");
+    expect(content).toContain("Call the weather tool");
+  });
+
+  test("composeSkillMarkdown includes disable-model-invocation when set", () => {
+    const content = composeSkillMarkdown({
+      name: "deploy",
+      description: "Deploy the app.",
+      disableModelInvocation: true,
+    });
+
+    expect(content).toContain("disable-model-invocation: true");
+  });
+});

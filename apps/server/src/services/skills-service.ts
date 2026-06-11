@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type {
+  CreateSkillRequest,
   ListSkillsResponse,
   SkillDetail,
   SkillResponse,
@@ -12,6 +13,7 @@ import type { DatabaseAdapter, StoredSkillRecord } from "@tinyclaw/db";
 import {
   composeMatchedSkillsPrompt,
   composeSkillsCatalog,
+  createSkillFile,
   discoverSkills,
   loadSkillTools,
   matchSkillsForMessage,
@@ -63,6 +65,36 @@ export class SkillsService {
     await this.syncDiscoveredSkills();
     const skills = await this.db.listSkills();
     return { skills: skills.map(toSkillSummary) };
+  }
+
+  async createSkill(request: CreateSkillRequest): Promise<SkillResponse> {
+    const name = request.name.trim();
+
+    if (!name) {
+      throw new Error("Skill name is required.");
+    }
+
+    if (!request.description.trim()) {
+      throw new Error("Skill description is required.");
+    }
+
+    await createSkillFile({
+      name,
+      description: request.description.trim(),
+      body: request.body,
+      disableModelInvocation: request.disableModelInvocation,
+      profileId: request.profileId?.trim() || undefined,
+    });
+
+    await this.syncDiscoveredSkills();
+
+    const record = await this.db.getSkillByName(name);
+
+    if (!record) {
+      throw new Error("Skill was created but could not be synced.");
+    }
+
+    return this.getSkill(record.id);
   }
 
   async getSkill(skillId: string): Promise<SkillResponse> {

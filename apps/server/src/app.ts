@@ -73,6 +73,7 @@ import {
   type AssignMcpServerRequest,
   type AssignSkillRequest,
   type CreateMcpServerRequest,
+  type CreateSkillRequest,
   type ListMcpServersResponse,
   type ListSkillsResponse,
   type McpServerResponse,
@@ -362,6 +363,11 @@ export function createApp(options: ServerOptions) {
 
         if (request.method === "GET" && url.pathname === "/v1/skills") {
           return json<ListSkillsResponse>(await agent.listSkills());
+        }
+
+        if (request.method === "POST" && url.pathname === "/v1/skills") {
+          const body = await readJson<CreateSkillRequest>(request);
+          return json<SkillResponse>(await agent.createSkill(body));
         }
 
         if (request.method === "POST" && url.pathname === "/v1/skills/sync") {

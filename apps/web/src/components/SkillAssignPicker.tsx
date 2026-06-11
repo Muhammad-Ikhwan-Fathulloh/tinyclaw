@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 interface SkillAssignPickerProps {
   skills: SkillSummary[];
   disabled?: boolean;
+  buttonLabel?: string;
   onAssign: (skillId: string) => void | Promise<void>;
   className?: string;
 }
@@ -43,6 +44,7 @@ function formatSkillMeta(skill: SkillSummary): string {
 export function SkillAssignPicker({
   skills,
   disabled = false,
+  buttonLabel = "Add skill",
   onAssign,
   className,
 }: SkillAssignPickerProps) {
@@ -63,7 +65,7 @@ export function SkillAssignPicker({
         onClick={() => setOpen(true)}
       >
         <PlusIcon className="size-4" aria-hidden />
-        Add skill
+        {buttonLabel}
       </Button>
 
       <Dialog

@@ -16,7 +16,7 @@ export interface DiscoverSkillsOptions {
 export async function discoverSkills(
   options: DiscoverSkillsOptions = {},
 ): Promise<DiscoveredSkill[]> {
-  const dirs = resolveSkillDiscoveryDirs(options);
+  const dirs = await resolveSkillDiscoveryDirs(options);
   const discovered = new Map<string, DiscoveredSkill>();
 
   for (const rootDir of dirs) {

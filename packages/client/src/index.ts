@@ -11,6 +11,7 @@ import type {
   UpdateMcpServerRequest,
   ChatMessage,
   CreateProfileRequest,
+  CreateSkillRequest,
   CreateSessionResponse,
   CreateToolRequest,
   DraftAutomationResponse,
@@ -21,6 +22,7 @@ import type {
   ListProfilesResponse,
   ListSkillsResponse,
   ListToolsResponse,
+  SkillResponse,
   SyncSkillsResponse,
   ToolResponse,
   ToolSourceResponse,
@@ -414,6 +416,13 @@ export class TinyClawClient {
 
   async listSkills(): Promise<ListSkillsResponse> {
     return this.request<ListSkillsResponse>("/v1/skills");
+  }
+
+  async createSkill(request: CreateSkillRequest): Promise<SkillResponse> {
+    return this.request<SkillResponse>("/v1/skills", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
   }
 
   async syncSkills(): Promise<SyncSkillsResponse> {

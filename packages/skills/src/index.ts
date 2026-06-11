@@ -5,3 +5,4 @@ export * from "./match";
 export * from "./parse";
 export * from "./paths";
 export * from "./types";
+export * from "./write";
