@@ -180,7 +180,7 @@ export function ToolDetailDialog({
               </div>
             </div>
 
-            <DialogFooter className="flex-col-reverse gap-2 border-t-0 bg-transparent p-0 pt-2 sm:flex-row sm:justify-between sm:gap-3">
+            <DialogFooter className="flex-col-reverse gap-2 border-t-0 bg-transparent p-0 pt-2 pb-2 sm:flex-row sm:justify-between sm:gap-3">
               {deletable ? (
                 <Button
                   type="button"

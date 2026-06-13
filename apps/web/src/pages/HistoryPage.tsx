@@ -289,15 +289,14 @@ export function HistoryPage() {
               This removes {deleteTarget?.messageCount ?? 0} message
               {(deleteTarget?.messageCount ?? 0) === 1 ? "" : "s"}. This cannot be undone.
             </DialogDescription>
+            {deleteTarget ? (
+              <p className="text-sm font-medium text-foreground line-clamp-2">
+                {formatSessionTitle(deleteTarget)}
+              </p>
+            ) : null}
           </DialogHeader>
 
-          {deleteTarget ? (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {formatSessionTitle(deleteTarget)}
-            </p>
-          ) : null}
-
-          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
+          <DialogFooter className="mx-0 mb-0 gap-2 border-0 bg-transparent p-0 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"

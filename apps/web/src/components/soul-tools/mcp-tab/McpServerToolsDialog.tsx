@@ -108,7 +108,7 @@ export function McpServerToolsDialog({
               )}
             </div>
 
-            <DialogFooter className="mx-0 mb-0 shrink-0 gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
+            <DialogFooter className="mx-0 mb-0 shrink-0 gap-3 border-t-0 bg-transparent p-0 pt-2 pb-2 sm:justify-end">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>

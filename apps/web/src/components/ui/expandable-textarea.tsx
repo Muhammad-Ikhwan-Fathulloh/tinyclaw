@@ -123,7 +123,7 @@ function ExpandableTextarea({
             )}
             onChange={onChange}
           />
-          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
+          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 pb-2 sm:justify-end">
             <Button type="button" disabled={disabled || saving} onClick={() => void handleSave()}>
               {saving ? <Spinner className="size-4" /> : "Save"}
             </Button>
