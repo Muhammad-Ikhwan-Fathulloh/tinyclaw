@@ -48,6 +48,7 @@ import {
 } from "@/lib/chat-stream";
 import { AgentTodoPanel } from "@/components/chat/AgentTodoPanel";
 import { cn } from "@/lib/utils";
+import { INHERIT_MODEL_VALUE, encodeModelSelection } from "@/lib/models";
 
 interface ChatComposerBaseProps {
   chatStatus: ChatStatus;
@@ -81,6 +82,8 @@ interface ChatComposerFullProps extends ChatComposerBaseProps {
     providerLabel: string;
     models: ProviderModelOption[];
   }>;
+  inheritModelLabel?: string | null;
+  profileModelId?: string | null;
   currentModelSelection: string | null;
   onModelChange: (selection: string) => void;
   renderModelLabel: (selection: string | null) => string | null;
@@ -305,6 +308,25 @@ function ChatComposerFullFooter({
               alignItemWithTrigger={false}
               className="w-max max-w-[min(24rem,92vw)] text-xs"
             >
+              {props.inheritModelLabel ? (
+                <PromptInputSelectItem
+                  value={INHERIT_MODEL_VALUE}
+                  label={props.inheritModelLabel}
+                >
+                  {props.inheritModelLabel}
+                </PromptInputSelectItem>
+              ) : null}
+              {props.profileModelId &&
+              !props.providerModelGroups.some((group) =>
+                group.models.some((model) => model.id === props.profileModelId),
+              ) ? (
+                <PromptInputSelectItem
+                  value={encodeModelSelection("__unknown__", props.profileModelId)}
+                  label={props.profileModelId}
+                >
+                  {props.profileModelId}
+                </PromptInputSelectItem>
+              ) : null}
               {props.providerModelGroups.map((group) => (
                 <div key={group.providerId}>
                   <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">

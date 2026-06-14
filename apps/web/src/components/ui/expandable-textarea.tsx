@@ -22,6 +22,8 @@ type ExpandableTextareaProps = {
   onSave?: () => boolean | void | Promise<boolean | void>;
   disabled?: boolean;
   className?: string;
+  containerClassName?: string;
+  previewClassName?: string;
   dialogTitle?: string;
   dialogDescription?: string;
   placeholder?: string;
@@ -36,6 +38,8 @@ function ExpandableTextarea({
   onSave,
   disabled = false,
   className,
+  containerClassName,
+  previewClassName,
   dialogTitle,
   dialogDescription,
   placeholder,
@@ -69,7 +73,7 @@ function ExpandableTextarea({
 
   return (
     <>
-      <div className="flex flex-col gap-1.5">
+      <div className={cn("flex flex-col gap-1.5", containerClassName)}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">{label}</span>
           <Button
@@ -97,6 +101,7 @@ function ExpandableTextarea({
             "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
             "disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
             trimmed ? "font-mono text-foreground" : "text-muted-foreground",
+            previewClassName,
           )}
         >
           <span className="line-clamp-2 whitespace-pre-wrap break-words">{preview}</span>

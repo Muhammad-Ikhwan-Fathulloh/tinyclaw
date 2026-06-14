@@ -97,6 +97,7 @@ import {
   type StoredTaskRunRecord,
 } from "@tinyclaw/db";
 import {
+  createProviderForInstance,
   createProviderFromActiveConfig,
   createProviderFromSources,
   fetchRemoteOpenAIModels,
@@ -352,8 +353,9 @@ export class AgentService {
     );
     const userTimezone = await this.getUserTimezone();
     const userContext = await loadUserContext();
+    const harness = this.createHarnessForProfile(profile);
 
-    const session = this.harness.createChatSession({
+    const session = harness.createChatSession({
       channel: "automation",
       tools,
       systemPrompt,
@@ -1051,7 +1053,17 @@ export class AgentService {
     profileId: string,
     request: UpdateProfileRequest,
   ): Promise<ProfileResponse> {
-    return this.profileService.updateProfile(profileId, request);
+    const response = await this.profileService.updateProfile(profileId, request);
+
+    if (request.model !== undefined) {
+      for (const [sessionId, record] of this.sessions.entries()) {
+        if (record.profileId === profileId) {
+          this.sessions.delete(sessionId);
+        }
+      }
+    }
+
+    return response;
   }
 
   async deleteProfile(profileId: string): Promise<void> {
@@ -1351,8 +1363,9 @@ export class AgentService {
     const userTimezone = await this.getUserTimezone();
     const userContext = await loadUserContext();
     const compaction = this.resolveCompactionConfig(profile);
+    const harness = this.createHarnessForProfile(profile);
 
-    const session = this.harness.createChatSession({
+    const session = harness.createChatSession({
       channel,
       tools,
       systemPrompt: resolvedSystemPrompt,
@@ -1429,6 +1442,23 @@ export class AgentService {
     }
 
     return this.skillsService;
+  }
+
+  private createHarnessForProfile(profile: StoredProfileRecord): AgentHarness {
+    const active = getActiveProviderInstance(this.userConfig);
+
+    if (!active) {
+      return this.createHarness(null);
+    }
+
+    const modelId = resolveModel(
+      active.type,
+      profile.model ?? this.userConfig?.defaultModel ?? "",
+      active.customModels,
+    );
+    const provider = createProviderForInstance(active, modelId);
+
+    return this.createHarness(provider);
   }
 
   private resolveCompactionConfig(

@@ -424,6 +424,61 @@ export function groupModelsByProvider(
   return [...groups.values()];
 }
 
+export const INHERIT_MODEL_VALUE = "__inherit__";
+
+export function profileModelSelectionValue(
+  modelId: string | null,
+  groups: ReturnType<typeof groupModelsByProvider>,
+): string {
+  if (!modelId) {
+    return INHERIT_MODEL_VALUE;
+  }
+
+  for (const group of groups) {
+    if (group.models.some((model) => model.id === modelId)) {
+      return encodeModelSelection(group.providerId, modelId);
+    }
+  }
+
+  return encodeModelSelection("__unknown__", modelId);
+}
+
+export function profileModelLabel(
+  modelId: string | null,
+  groups: ReturnType<typeof groupModelsByProvider>,
+  globalModel: string | null | undefined,
+): string {
+  if (!modelId) {
+    return globalModel ? `Inherit global (${globalModel})` : "Inherit global";
+  }
+
+  for (const group of groups) {
+    const match = group.models.find((model) => model.id === modelId);
+    if (match) {
+      return match.name;
+    }
+  }
+
+  return modelId;
+}
+
+export function effectiveProfileModelSelection(
+  profileModel: string | null | undefined,
+  globalProviderId: string | null | undefined,
+  globalModel: string | null | undefined,
+  groups: ReturnType<typeof groupModelsByProvider>,
+): string | null {
+  if (profileModel) {
+    return profileModelSelectionValue(profileModel, groups);
+  }
+
+  if (globalProviderId && globalModel) {
+    return encodeModelSelection(globalProviderId, globalModel);
+  }
+
+  return null;
+}
+
 export function modelsFromCustomRows(
   rows: Array<{ id: string; name?: string; default?: boolean; inputPerMillionUsd?: number; outputPerMillionUsd?: number }>,
 ): ProviderModelOption[] {

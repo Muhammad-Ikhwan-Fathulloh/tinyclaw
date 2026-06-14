@@ -8,7 +8,7 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { useAppContext } from "@/context/app-context";
-import { useBranchSessionMutation } from "@/hooks/use-resource-mutations";
+import { useBranchSessionMutation, useUpdateProfileMutation } from "@/hooks/use-resource-mutations";
 import { useThinkingSettings } from "@/hooks/use-thinking-settings";
 import { filePartsToDocumentAttachments, filePartsToImageAttachments } from "@/lib/chat-images";
 import {
@@ -30,8 +30,11 @@ import {
 import { client, formatError } from "@/lib/client";
 import {
   decodeModelSelection,
+  effectiveProfileModelSelection,
   encodeModelSelection,
   groupModelsByProvider,
+  INHERIT_MODEL_VALUE,
+  profileModelLabel,
 } from "@/lib/models";
 import { SETUP_PATH } from "@/lib/navigation";
 
@@ -46,7 +49,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const routeSession = useMemo(() => parseChatRouteParams(params), [params]);
-  const { health, models, setModel } = useAppContext();
+  const { health, models } = useAppContext();
   const { data: thinkingSettings } = useThinkingSettings();
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [profileId, setProfileId] = useState(
@@ -84,19 +87,33 @@ export function ChatPage() {
 
   const showOfflineHint = health != null && !health.providerConfigured;
   const branchSessionMutation = useBranchSessionMutation();
+  const updateProfileMutation = useUpdateProfileMutation();
+
+  const activeProfile = useMemo(
+    () => profiles.find((profile) => profile.id === profileId),
+    [profiles, profileId],
+  );
 
   const providerModelGroups = useMemo(
     () => groupModelsByProvider(models?.models ?? []),
     [models?.models],
   );
 
-  const currentModelSelection = useMemo(() => {
-    if (!models?.currentProviderId || !models.currentModel) {
-      return null;
-    }
-
-    return encodeModelSelection(models.currentProviderId, models.currentModel);
-  }, [models?.currentProviderId, models?.currentModel]);
+  const currentModelSelection = useMemo(
+    () =>
+      effectiveProfileModelSelection(
+        activeProfile?.model,
+        models?.currentProviderId,
+        models?.currentModel,
+        providerModelGroups,
+      ),
+    [
+      activeProfile?.model,
+      models?.currentProviderId,
+      models?.currentModel,
+      providerModelGroups,
+    ],
+  );
 
   const renderModelLabel = useCallback(
     (selection: string | null) => {
@@ -104,10 +121,18 @@ export function ChatPage() {
         return null;
       }
 
+      if (selection === INHERIT_MODEL_VALUE) {
+        return profileModelLabel(null, providerModelGroups, models?.currentModel);
+      }
+
       const decoded = decodeModelSelection(selection);
 
       if (!decoded) {
         return selection;
+      }
+
+      if (decoded.providerId === "__unknown__") {
+        return decoded.modelId;
       }
 
       const group = providerModelGroups.find(
@@ -118,25 +143,59 @@ export function ChatPage() {
         decoded.modelId
       );
     },
-    [providerModelGroups],
+    [models?.currentModel, providerModelGroups],
   );
 
   const handleModelChange = useCallback(
     (selection: string) => {
+      if (!profileId) {
+        return;
+      }
+
+      if (selection === INHERIT_MODEL_VALUE) {
+        void updateProfileMutation
+          .mutateAsync({
+            profileId,
+            input: { model: null },
+          })
+          .then(() => {
+            setProfiles((current) =>
+              current.map((profile) =>
+                profile.id === profileId ? { ...profile, model: null } : profile,
+              ),
+            );
+          })
+          .catch((err) => {
+            setError(formatError(err));
+          });
+        return;
+      }
+
       const decoded = decodeModelSelection(selection);
 
       if (!decoded) {
         return;
       }
 
-      void setModel({ providerId: decoded.providerId, model: decoded.modelId });
+      void updateProfileMutation
+        .mutateAsync({
+          profileId,
+          input: { model: decoded.modelId },
+        })
+        .then(() => {
+          setProfiles((current) =>
+            current.map((profile) =>
+              profile.id === profileId
+                ? { ...profile, model: decoded.modelId }
+                : profile,
+            ),
+          );
+        })
+        .catch((err) => {
+          setError(formatError(err));
+        });
     },
-    [setModel],
-  );
-
-  const activeProfile = useMemo(
-    () => profiles.find((profile) => profile.id === profileId),
-    [profiles, profileId],
+    [profileId, updateProfileMutation],
   );
 
   const loadProfiles = useCallback(async () => {
@@ -525,6 +584,12 @@ export function ChatPage() {
             providerConfigured={health?.providerConfigured}
             onNavigateSetup={() => navigate(SETUP_PATH)}
             providerModelGroups={providerModelGroups}
+            inheritModelLabel={profileModelLabel(
+              null,
+              providerModelGroups,
+              models?.defaultModel ?? models?.currentModel,
+            )}
+            profileModelId={activeProfile?.model ?? null}
             currentModelSelection={currentModelSelection}
             onModelChange={handleModelChange}
             renderModelLabel={renderModelLabel}
