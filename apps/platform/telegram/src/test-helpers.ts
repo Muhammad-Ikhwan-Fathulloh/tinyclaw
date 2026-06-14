@@ -4,20 +4,25 @@ import * as os from "node:os";
 import path from "node:path";
 import { spyOn } from "bun:test";
 import type { TinyClawClient } from "@tinyclaw/client";
+import type { AgentTodo } from "@tinyclaw/core/contract";
+import type { StreamHandlers } from "@tinyclaw/client";
 import type { Context } from "grammy";
 
 export interface MockMessageContext {
   ctx: Context;
   replies: string[];
+  edits: Array<{ chatId: number; messageId: number; text: string }>;
 }
 
-function createMessageContext(options: {
+export function createMessageContext(options: {
   userId?: number;
   chatId?: number;
   text?: string;
   chatType?: "private" | "group" | "supergroup";
 }): MockMessageContext {
   const replies: string[] = [];
+  const edits: Array<{ chatId: number; messageId: number; text: string }> = [];
+  let nextMessageId = 1;
   const ctx = {
     chat: options.chatType
       ? { id: options.chatId ?? -100, type: options.chatType }
@@ -26,19 +31,37 @@ function createMessageContext(options: {
     message: options.text !== undefined ? { text: options.text } : {},
     reply: async (text: string) => {
       replies.push(text);
+      return { message_id: nextMessageId++ };
     },
     replyWithChatAction: async () => {},
+    api: {
+      editMessageText: async (chatId: number, messageId: number, text: string) => {
+        edits.push({ chatId, messageId, text });
+      },
+    },
   } as unknown as Context;
 
-  return { ctx, replies };
+  return { ctx, replies, edits };
 }
 
 export interface MockStreamControl {
   complete(reply?: string): void;
+  fail(error?: Error): void;
   readonly signal: AbortSignal | undefined;
 }
 
-function createMockClient(options: { streaming?: boolean } = {}) {
+type StreamStep =
+  | { type: "todos"; todos: AgentTodo[] }
+  | { type: "chunk"; delta: string }
+  | { type: "thinking"; delta?: string }
+  | { type: "tool_start" }
+  | { type: "tool_end" }
+  | { type: "error"; message: string }
+  | { type: "resolve"; reply?: string };
+
+export function createMockClient(
+  options: { streaming?: boolean; steps?: StreamStep[]; autoComplete?: boolean } = {},
+) {
   const calls = {
     createSession: 0,
     sendStream: 0,
@@ -49,7 +72,7 @@ function createMockClient(options: { streaming?: boolean } = {}) {
 
   const sendStream = async (
     _input: unknown,
-    _handlers: unknown,
+    handlers: unknown,
     streamOptions?: { signal?: AbortSignal },
   ) => {
     calls.sendStream += 1;
@@ -58,23 +81,86 @@ function createMockClient(options: { streaming?: boolean } = {}) {
       return "Agent reply";
     }
 
+    const streamHandlers = handlers as StreamHandlers;
+
     return new Promise<string>((resolve, reject) => {
+      let settled = false;
+
       streamControl = {
         get signal() {
           return streamOptions?.signal;
         },
         complete(reply = "Agent reply") {
+          if (settled) {
+            return;
+          }
+          settled = true;
           resolve(reply);
+        },
+        fail(error = new Error("Stream failed")) {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          reject(error);
         },
       };
 
       streamOptions?.signal?.addEventListener(
         "abort",
         () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
           reject(new DOMException("Aborted", "AbortError"));
         },
         { once: true },
       );
+
+      queueMicrotask(() => {
+        for (const step of options.steps ?? []) {
+          if (settled) {
+            break;
+          }
+
+          switch (step.type) {
+            case "todos":
+              streamHandlers.onTodosUpdated?.(step.todos);
+              break;
+            case "chunk":
+              streamHandlers.onChunk(step.delta);
+              break;
+            case "thinking":
+              streamHandlers.onThinking?.(step.delta ?? "");
+              break;
+            case "tool_start":
+              streamHandlers.onToolStart?.({
+                toolCallId: "tool_call_1",
+                tool: "todo_write",
+                input: {},
+              });
+              break;
+            case "tool_end":
+              streamHandlers.onToolEnd?.({
+                toolCallId: "tool_call_1",
+                tool: "todo_write",
+                result: {},
+              });
+              break;
+            case "error":
+              streamControl?.fail(new Error(step.message));
+              break;
+            case "resolve":
+              streamControl?.complete(step.reply);
+              break;
+          }
+        }
+
+        if (!settled && options.steps?.length && options.autoComplete !== false) {
+          streamControl?.complete("Agent reply");
+        }
+      });
     });
   };
 
@@ -113,7 +199,7 @@ function createMockClient(options: { streaming?: boolean } = {}) {
   };
 }
 
-async function writeTelegramConfigIni(
+export async function writeTelegramConfigIni(
   homeDir: string,
   config: {
     botToken: string;
@@ -148,7 +234,7 @@ async function writeTelegramConfigIni(
   await writeFile(path.join(dir, "config.ini"), lines.join("\n"), "utf8");
 }
 
-async function withTempHome<T>(
+export async function withTempHome<T>(
   run: (homeDir: string) => Promise<T>,
 ): Promise<T> {
   const homeDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-telegram-home-"));

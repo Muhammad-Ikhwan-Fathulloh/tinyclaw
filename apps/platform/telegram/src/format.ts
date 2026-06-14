@@ -1,6 +1,9 @@
 import { formatClientError } from "@tinyclaw/core/api-error";
+import type { AgentTodo } from "@tinyclaw/core/contract";
 
 const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
+
+type TelegramTodoRunState = "working" | "completed" | "stopped" | "failed";
 
 export function formatError(error: unknown): string {
   return formatClientError(error);
@@ -121,6 +124,35 @@ export function splitTelegramMessage(text: string): string[] {
   }
 
   return chunks;
+}
+
+export function renderTelegramTodoStatus(
+  todos: AgentTodo[],
+  state: TelegramTodoRunState,
+): string {
+  const header =
+    state === "completed"
+      ? "✅ Completed"
+      : state === "stopped"
+        ? "⏹️ Stopped"
+        : state === "failed"
+          ? "❌ Failed"
+          : "🛠️ Working";
+
+  return [header, ...todos.map(formatTelegramTodoLine)].join("\n");
+}
+
+function formatTelegramTodoLine(todo: AgentTodo): string {
+  switch (todo.status) {
+    case "completed":
+      return `✅ [x] ${todo.content}`;
+    case "in_progress":
+      return `🔄 [~] ${todo.content}`;
+    case "cancelled":
+      return `🚫 [-] ${todo.content}`;
+    default:
+      return `⏳ [ ] ${todo.content}`;
+  }
 }
 
 export const HELP_TEXT = `TinyClaw Telegram commands:
