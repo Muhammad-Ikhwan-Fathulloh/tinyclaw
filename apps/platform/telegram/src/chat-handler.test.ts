@@ -363,6 +363,286 @@ describe("createChatHandler security", () => {
     });
   });
 
+  test("shows todo progress in one status message and keeps the final completed state", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeTelegramConfigIni(homeDir, {
+        botToken: "1234567890:TEST",
+        allowedUserIds: [4242],
+      });
+
+      const authStore = new TelegramAuthStore();
+      await authStore.reload();
+      const { client } = createMockClient({
+        streaming: true,
+        steps: [
+          {
+            type: "todos",
+            todos: [
+              { id: "plan", content: "Plan changes", status: "in_progress" },
+              { id: "ship", content: "Ship update", status: "pending" },
+            ],
+          },
+          {
+            type: "todos",
+            todos: [
+              { id: "plan", content: "Plan changes", status: "completed" },
+              { id: "ship", content: "Ship update", status: "completed" },
+            ],
+          },
+          { type: "todos", todos: [] },
+          { type: "resolve", reply: "Done" },
+        ],
+      });
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "telegram", "chat-sessions.json"),
+      );
+      const handleMessage = createChatHandler({
+        client,
+        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        authStore,
+        sessionStore,
+      });
+
+      const { ctx, replies, edits } = createMessageContext({
+        userId: 4242,
+        text: "hello agent",
+      });
+
+      await handleMessage(ctx);
+
+      expect(replies).toHaveLength(2);
+      expect(replies[0]).toContain("🛠️ Working");
+      expect(replies[0]).toContain("🔄 [~] Plan changes");
+      expect(replies[0]).toContain("⏳ [ ] Ship update");
+      expect(replies[1]).toBe("Done");
+      expect(edits).toHaveLength(2);
+      expect(edits[0]).toEqual({
+        chatId: 4242,
+        messageId: 1,
+        text: "🛠️ Working\n✅ [x] Plan changes\n✅ [x] Ship update",
+      });
+      expect(edits[1]).toEqual({
+        chatId: 4242,
+        messageId: 1,
+        text: "✅ Completed\n✅ [x] Plan changes\n✅ [x] Ship update",
+      });
+    });
+  });
+
+  test("does not create a status message when no todo updates arrive", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeTelegramConfigIni(homeDir, {
+        botToken: "1234567890:TEST",
+        allowedUserIds: [4242],
+      });
+
+      const authStore = new TelegramAuthStore();
+      await authStore.reload();
+      const { client } = createMockClient({
+        streaming: true,
+        steps: [
+          { type: "chunk", delta: "Agent " },
+          { type: "chunk", delta: "reply" },
+          { type: "resolve", reply: "Agent reply" },
+        ],
+      });
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "telegram", "chat-sessions.json"),
+      );
+      const handleMessage = createChatHandler({
+        client,
+        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        authStore,
+        sessionStore,
+      });
+
+      const { ctx, replies, edits } = createMessageContext({
+        userId: 4242,
+        text: "hello agent",
+      });
+
+      await handleMessage(ctx);
+
+      expect(replies).toEqual(["Agent reply"]);
+      expect(edits).toEqual([]);
+    });
+  });
+
+  test("reuses the same status message when stopping an in-flight run", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeTelegramConfigIni(homeDir, {
+        botToken: "1234567890:TEST",
+        allowedUserIds: [4242],
+      });
+
+      const authStore = new TelegramAuthStore();
+      await authStore.reload();
+      const { client } = createMockClient({
+        streaming: true,
+        autoComplete: false,
+        steps: [
+          {
+            type: "todos",
+            todos: [
+              { id: "plan", content: "Plan changes", status: "in_progress" },
+              { id: "ship", content: "Ship update", status: "pending" },
+            ],
+          },
+        ],
+      });
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "telegram", "chat-sessions.json"),
+      );
+      const handleMessage = createChatHandler({
+        client,
+        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        authStore,
+        sessionStore,
+      });
+
+      const chatAttempt = createMessageContext({
+        userId: 4242,
+        text: "hello agent",
+      });
+      const stopAttempt = createMessageContext({
+        userId: 4242,
+        text: "/stop",
+      });
+
+      const chatPromise = handleMessage(chatAttempt.ctx);
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handleMessage(stopAttempt.ctx);
+      await chatPromise;
+
+      expect(chatAttempt.replies).toEqual([
+        "🛠️ Working\n🔄 [~] Plan changes\n⏳ [ ] Ship update",
+        "Stopped.",
+      ]);
+      expect(chatAttempt.edits).toEqual([
+        {
+          chatId: 4242,
+          messageId: 1,
+          text: "⏹️ Stopped\n🔄 [~] Plan changes\n⏳ [ ] Ship update",
+        },
+      ]);
+      expect(stopAttempt.replies).toEqual([]);
+    });
+  });
+
+  test("marks the status message as failed when the stream errors", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeTelegramConfigIni(homeDir, {
+        botToken: "1234567890:TEST",
+        allowedUserIds: [4242],
+      });
+
+      const authStore = new TelegramAuthStore();
+      await authStore.reload();
+      const { client } = createMockClient({
+        streaming: true,
+        steps: [
+          {
+            type: "todos",
+            todos: [
+              { id: "plan", content: "Plan changes", status: "in_progress" },
+              { id: "ship", content: "Ship update", status: "pending" },
+            ],
+          },
+          { type: "error", message: "Boom" },
+        ],
+      });
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "telegram", "chat-sessions.json"),
+      );
+      const handleMessage = createChatHandler({
+        client,
+        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        authStore,
+        sessionStore,
+      });
+
+      const { ctx, replies, edits } = createMessageContext({
+        userId: 4242,
+        text: "hello agent",
+      });
+
+      await handleMessage(ctx);
+
+      expect(replies).toEqual([
+        "🛠️ Working\n🔄 [~] Plan changes\n⏳ [ ] Ship update",
+        "Boom",
+      ]);
+      expect(edits).toEqual([
+        {
+          chatId: 4242,
+          messageId: 1,
+          text: "❌ Failed\n🔄 [~] Plan changes\n⏳ [ ] Ship update",
+        },
+      ]);
+    });
+  });
+
+  test("skips redundant edits for identical todo payloads", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeTelegramConfigIni(homeDir, {
+        botToken: "1234567890:TEST",
+        allowedUserIds: [4242],
+      });
+
+      const authStore = new TelegramAuthStore();
+      await authStore.reload();
+      const { client } = createMockClient({
+        streaming: true,
+        steps: [
+          {
+            type: "todos",
+            todos: [
+              { id: "plan", content: "Plan changes", status: "in_progress" },
+              { id: "ship", content: "Ship update", status: "pending" },
+            ],
+          },
+          {
+            type: "todos",
+            todos: [
+              { id: "plan", content: "Plan changes", status: "in_progress" },
+              { id: "ship", content: "Ship update", status: "pending" },
+            ],
+          },
+          { type: "resolve", reply: "Done" },
+        ],
+      });
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "telegram", "chat-sessions.json"),
+      );
+      const handleMessage = createChatHandler({
+        client,
+        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        authStore,
+        sessionStore,
+      });
+
+      const { ctx, replies, edits } = createMessageContext({
+        userId: 4242,
+        text: "hello agent",
+      });
+
+      await handleMessage(ctx);
+
+      expect(replies).toEqual([
+        "🛠️ Working\n🔄 [~] Plan changes\n⏳ [ ] Ship update",
+        "Done",
+      ]);
+      expect(edits).toEqual([
+        {
+          chatId: 4242,
+          messageId: 1,
+          text: "✅ Completed\n🔄 [~] Plan changes\n⏳ [ ] Ship update",
+        },
+      ]);
+    });
+  });
+
   test("/start shows pairing prompt before authorization", async () => {
     await withTempHome(async (homeDir) => {
       await writeTelegramConfigIni(homeDir, {

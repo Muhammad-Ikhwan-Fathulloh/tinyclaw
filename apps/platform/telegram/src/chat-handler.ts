@@ -13,6 +13,7 @@ import type { TelegramBridgeConfig } from "./config";
 import type { TelegramAuthStore } from "./auth-store";
 import { formatError, HELP_TEXT, splitTelegramMessage } from "./format";
 import { replyAsChat } from "./reply";
+import { TelegramTodoStatusMessage } from "./todo-status-message";
 import { createTypingLoop } from "./typing-indicator";
 import type { SessionStore } from "./session-store";
 
@@ -196,6 +197,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
   ): Promise<void> {
     const session = await resolveSession(chatId);
     const typingLoop = createTypingLoop(ctx);
+    const todoStatus = new TelegramTodoStatusMessage(ctx);
     const signal = registerActiveStream(chatId);
     let reply = "";
 
@@ -217,9 +219,15 @@ export function createChatHandler(deps: ChatHandlerDeps) {
           onToolEnd: () => {
             typingLoop.ping();
           },
+          onTodosUpdated: (todos) => {
+            typingLoop.ping();
+            void todoStatus.update(todos);
+          },
         },
         { signal },
       );
+
+      await todoStatus.complete();
 
       if (signal.aborted) {
         if (reply.trim()) {
@@ -231,6 +239,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       }
     } catch (error) {
       if (isAbortError(error)) {
+        await todoStatus.stop();
         if (reply.trim()) {
           await replyAsChat(ctx, reply);
         }
@@ -239,6 +248,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
       }
 
+      await todoStatus.fail();
       await ctx.reply(formatError(error));
       return;
     } finally {
