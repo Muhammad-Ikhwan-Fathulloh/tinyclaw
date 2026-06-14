@@ -63,6 +63,29 @@ describe("SkillsService", () => {
     );
 
     expect(matched).toContain("Active Skill: weather");
+    expect(matched).toContain("Get weather forecasts");
+    expect(matched).not.toContain("Call the `weather` tool");
+  });
+
+  test("includes full skill body for explicit skill activation", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    const service = new SkillsService(db);
+    await service.syncDiscoveredSkills();
+
+    const weather = (await service.listSkills()).skills.find(
+      (skill) => skill.name === "weather",
+    );
+
+    expect(weather).toBeDefined();
+
+    await db.assignSkillToProfile("profile_default", weather!.id);
+
+    const matched = await service.formatMatchedSkillsForPrompt(
+      "profile_default",
+      "/skill weather",
+    );
+
+    expect(matched).toContain("Active Skill: weather");
     expect(matched).toContain("Call the `weather` tool");
   });
 

@@ -17,6 +17,7 @@ import {
   createSkillFile,
   deleteSkillDirectory,
   discoverSkills,
+  extractExplicitSkillName,
   getGlobalSkillsDir,
   getProfileSkillsDir,
   loadSkillTools,
@@ -158,7 +159,10 @@ export class SkillsService {
   ): Promise<string> {
     const assigned = await this.getAssignedDiscoveredSkills(profileId);
     const matched = matchSkillsForMessage(assigned, userMessage);
-    return composeMatchedSkillsPrompt(matched);
+    const explicitSkillName = extractExplicitSkillName(userMessage);
+    return composeMatchedSkillsPrompt(matched, {
+      includeBody: explicitSkillName !== null,
+    });
   }
 
   async loadToolsForProfile(profileId: string): Promise<ToolDefinition[]> {

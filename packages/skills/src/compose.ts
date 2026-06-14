@@ -19,15 +19,19 @@ export function composeSkillsCatalog(skills: DiscoveredSkill[]): string {
   return lines.join("\n");
 }
 
-export function composeMatchedSkillsPrompt(skills: DiscoveredSkill[]): string {
+export function composeMatchedSkillsPrompt(
+  skills: DiscoveredSkill[],
+  options: { includeBody?: boolean } = {},
+): string {
   if (skills.length === 0) {
     return "";
   }
 
+  const includeBody = options.includeBody ?? false;
   const sections = skills.map((skill) => {
     const header = `# Active Skill: ${skill.name}`;
     const description = skill.description.trim();
-    const body = skill.body.trim();
+    const body = includeBody ? skill.body.trim() : "";
 
     return [header, description, "", body].filter(Boolean).join("\n");
   });

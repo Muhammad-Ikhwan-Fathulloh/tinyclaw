@@ -30,8 +30,7 @@ function AppShell() {
               <Route path="/chat/:profileId/:sessionId" element={<ChatPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/profiles" element={<ProfilesPage />} />
-              <Route path="/tools" element={<Navigate to="/soul?tab=tools" replace />} />
-              <Route path="/soul" element={<SoulPage />} />
+              <Route path="/system" element={<SoulPage />} />
               <Route path="/automations" element={<AutomationsPage />} />
               <Route path="/tasks" element={<TasksPage />} />
               <Route path="/settings" element={<SettingsPage />} />
