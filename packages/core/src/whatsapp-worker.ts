@@ -14,20 +14,26 @@ export interface WhatsAppWorkerHeartbeat {
 
 const DEFAULT_HEARTBEAT_MAX_AGE_MS = 45_000;
 const HEARTBEAT_FILENAME = "worker-heartbeat.json";
+const QR_CODE_FILENAME = "worker-qr.txt";
 
 export function getWhatsAppWorkerHeartbeatPath(): string {
   return join(getWhatsAppConfigDir(), HEARTBEAT_FILENAME);
 }
 
+export function getWhatsAppQrCodePath(): string {
+  return join(getWhatsAppConfigDir(), QR_CODE_FILENAME);
+}
+
 export function resolveWhatsAppWorkerStatus(
   settings: WhatsAppSettingsPublic,
   running: boolean,
+  qrCode: string | null,
 ): WhatsAppWorkerStatus {
   const configured = settings.configured;
   const paired = settings.pairedJid !== null;
   const ok = !configured || running;
 
-  return { configured, paired, running, ok };
+  return { configured, paired, running, ok, qrCode };
 }
 
 export function isWhatsAppProcessAlive(pid: number): boolean {
@@ -106,6 +112,25 @@ export async function clearWhatsAppWorkerHeartbeat(): Promise<void> {
   }
 }
 
+export async function writeWhatsAppQrCode(qr: string): Promise<void> {
+  await writePrivateTextFile(getWhatsAppQrCodePath(), qr, {
+    ensureDir: getWhatsAppConfigDir(),
+  });
+}
+
+export async function clearWhatsAppQrCode(): Promise<void> {
+  const path = getWhatsAppQrCodePath();
+
+  if (await pathExists(path)) {
+    await removeFile(path);
+  }
+}
+
+export async function readWhatsAppQrCode(): Promise<string | null> {
+  const raw = await readTextOrNull(getWhatsAppQrCodePath());
+  return raw?.trim() || null;
+}
+
 export async function readWhatsAppWorkerHeartbeat(): Promise<WhatsAppWorkerHeartbeat | null> {
   const raw = await readTextOrNull(getWhatsAppWorkerHeartbeatPath());
 
@@ -125,6 +150,7 @@ export async function isWhatsAppWorkerRunning(
 export async function getWhatsAppWorkerStatus(): Promise<WhatsAppWorkerStatus> {
   const settings = await loadWhatsAppSettingsPublic();
   const running = await isWhatsAppWorkerRunning();
+  const qrCode = await readWhatsAppQrCode();
 
-  return resolveWhatsAppWorkerStatus(settings, running);
+  return resolveWhatsAppWorkerStatus(settings, running, qrCode);
 }

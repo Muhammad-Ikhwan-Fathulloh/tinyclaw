@@ -10,6 +10,7 @@ export interface WhatsAppConfigFile {
   profileId: string;
   pairingCode: string | null;
   pairedJid: string | null;
+  pairedLid: string | null;
 }
 
 export interface WhatsAppSettingsPublic {
@@ -55,15 +56,31 @@ export function normalizePairingCode(input: string): string {
   return input.trim().replace(/\s+/g, "").toUpperCase();
 }
 
+function phoneDigits(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+function phoneToWhatsAppJid(phone: string): string {
+  return `${phoneDigits(phone)}@s.whatsapp.net`;
+}
+
+function whatsAppUserDigits(jid: string): string {
+  return phoneDigits(jid.split("@")[0]?.split(":")[0] ?? "");
+}
+
 export function isWhatsAppUserAuthorized(
   jid: string,
-  config: Pick<WhatsAppConfigFile, "pairedJid">,
+  config: Pick<WhatsAppConfigFile, "pairedJid" | "pairedLid">,
 ): boolean {
   if (!config.pairedJid) {
     return false;
   }
 
-  return config.pairedJid === jid;
+  if (jid === config.pairedJid || jid === config.pairedLid) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function loadWhatsAppConfigFile(): Promise<WhatsAppConfigFile | null> {
@@ -78,6 +95,7 @@ export async function loadWhatsAppConfigFile(): Promise<WhatsAppConfigFile | nul
   const profileId = values.profile_id?.trim() || DEFAULT_WHATSAPP_PROFILE_ID;
   const pairingCode = values.pairing_code?.trim() || null;
   const pairedJid = values.paired_jid?.trim() || null;
+  const pairedLid = values.paired_lid?.trim() || null;
 
   if (!phoneNumber) {
     return null;
@@ -88,6 +106,7 @@ export async function loadWhatsAppConfigFile(): Promise<WhatsAppConfigFile | nul
     profileId,
     pairingCode,
     pairedJid,
+    pairedLid,
   };
 }
 
@@ -124,6 +143,7 @@ async function writeWhatsAppConfigFile(config: WhatsAppConfigFile): Promise<void
     `profile_id=${config.profileId}`,
     ...(config.pairingCode ? [`pairing_code=${config.pairingCode}`] : []),
     ...(config.pairedJid ? [`paired_jid=${config.pairedJid}`] : []),
+    ...(config.pairedLid ? [`paired_lid=${config.pairedLid}`] : []),
     "",
   ];
 
@@ -176,6 +196,7 @@ function buildSavedWhatsAppConfig(
     profileId: resolveProfileId(input, existing),
     pairingCode: resolvePairingCode(existing, pairedJid),
     pairedJid,
+    pairedLid: existing?.pairedLid ?? null,
   };
 }
 
@@ -235,9 +256,15 @@ export async function verifyAndPairWhatsAppUser(
     };
   }
 
+  const pairedJid = jid.endsWith("@lid")
+    ? phoneToWhatsAppJid(config.phoneNumber)
+    : jid;
+  const pairedLid = jid.endsWith("@lid") ? jid : config.pairedLid;
+
   await writeWhatsAppConfigFile({
     ...config,
-    pairedJid: jid,
+    pairedJid,
+    pairedLid,
     pairingCode: null,
   });
 
@@ -245,6 +272,43 @@ export async function verifyAndPairWhatsAppUser(
     ok: true,
     message: "Linked successfully. You can chat with TinyClaw now.",
   };
+}
+
+/** After QR link, pair the configured owner and store their LID for inbound routing. */
+export async function syncWhatsAppOwnerPairing(options: {
+  ownerJid: string;
+  ownerLid?: string | null;
+}): Promise<void> {
+  const config = await loadWhatsAppConfigFile();
+
+  if (!config) {
+    return;
+  }
+
+  const configPhone = phoneDigits(config.phoneNumber);
+  const ownerPhone = whatsAppUserDigits(options.ownerJid);
+
+  if (!configPhone || configPhone !== ownerPhone) {
+    return;
+  }
+
+  const ownerLid = options.ownerLid?.trim() || null;
+  const next: WhatsAppConfigFile = {
+    ...config,
+    pairedJid: config.pairedJid ?? options.ownerJid,
+    pairedLid: ownerLid ?? config.pairedLid,
+    pairingCode: config.pairedJid ? config.pairingCode : null,
+  };
+
+  if (
+    next.pairedJid === config.pairedJid &&
+    next.pairedLid === config.pairedLid &&
+    next.pairingCode === config.pairingCode
+  ) {
+    return;
+  }
+
+  await writeWhatsAppConfigFile(next);
 }
 
 export function resolveWhatsAppConfigFromSources(options: {
@@ -267,5 +331,6 @@ export function resolveWhatsAppConfigFromSources(options: {
       DEFAULT_WHATSAPP_PROFILE_ID,
     pairingCode: file?.pairingCode ?? null,
     pairedJid: file?.pairedJid ?? null,
+    pairedLid: file?.pairedLid ?? null,
   };
 }

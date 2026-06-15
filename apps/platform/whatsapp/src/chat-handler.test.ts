@@ -311,4 +311,42 @@ describe("createChatHandler", () => {
       expect(calls.sendStream).toBe(0);
     });
   });
+
+  test("uses updated profile from config on the next message", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeWhatsAppConfigIni(homeDir, {
+        phoneNumber: "1234567890",
+        profileId: "profile_default",
+        pairedJid: PAIRED_JID,
+      });
+
+      const authStore = new WhatsAppAuthStore();
+      await authStore.reload();
+      const { client, calls } = createMockClient();
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "whatsapp", "chat-sessions.json"),
+      );
+      const { socket } = createMockSocket();
+
+      const handleMessage = createChatHandler({
+        client,
+        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        authStore,
+        sessionStore,
+        getSocket: () => socket as any,
+      });
+
+      await handleMessage({ jid: PAIRED_JID, text: "hello" });
+      expect(calls.profileIds).toEqual(["profile_default"]);
+
+      await writeWhatsAppConfigIni(homeDir, {
+        phoneNumber: "1234567890",
+        profileId: "profile_tensetutor",
+        pairedJid: PAIRED_JID,
+      });
+
+      await handleMessage({ jid: PAIRED_JID, text: "hello again" });
+      expect(calls.profileIds).toEqual(["profile_default", "profile_tensetutor"]);
+    });
+  });
 });

@@ -27,6 +27,7 @@ export function createMockClient(
     createSession: 0,
     sendStream: 0,
     compact: 0,
+    profileIds: [] as string[],
   };
 
   let streamControl: MockStreamControl | null = null;
@@ -133,8 +134,9 @@ export function createMockClient(
   };
 
   const client = {
-    createSession: async () => {
+    createSession: async (_channel, options = {}) => {
       calls.createSession += 1;
+      calls.profileIds.push(options.profileId ?? "profile_default");
       return session;
     },
     createChatSession: () => session,

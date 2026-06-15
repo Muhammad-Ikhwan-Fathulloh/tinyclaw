@@ -244,10 +244,16 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     }
   }
 
+  function resolveProfileId(): string {
+    const fileConfig = authStore.getConfig();
+    return fileConfig?.profileId?.trim() || config.profileId;
+  }
+
   async function resolveSession(jid: string): Promise<RemoteChatSession> {
+    const profileId = resolveProfileId();
     const existing = sessionStore.get(jid);
 
-    if (existing) {
+    if (existing && existing.profileId === profileId) {
       const session = client.createChatSession(existing.sessionId, "whatsapp");
 
       try {
@@ -258,17 +264,20 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       }
     }
 
-    return createAndBindSession(jid);
+    return createAndBindSession(jid, profileId);
   }
 
-  async function createAndBindSession(jid: string): Promise<RemoteChatSession> {
+  async function createAndBindSession(
+    jid: string,
+    profileId = resolveProfileId(),
+  ): Promise<RemoteChatSession> {
     const session = await client.createSession("whatsapp", {
-      profileId: config.profileId,
+      profileId,
     });
 
     sessionStore.set(jid, {
       sessionId: session.id,
-      profileId: config.profileId,
+      profileId,
       updatedAt: new Date().toISOString(),
     });
     await sessionStore.save();

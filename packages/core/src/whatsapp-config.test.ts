@@ -11,6 +11,7 @@ import {
   normalizePairingCode,
   resolveWhatsAppConfigFromSources,
   saveWhatsAppConfig,
+  syncWhatsAppOwnerPairing,
 } from "./whatsapp-config";
 
 describe("maskPhoneNumber", () => {
@@ -34,10 +35,20 @@ describe("normalizePairingCode", () => {
 });
 
 describe("isWhatsAppUserAuthorized", () => {
+  test("returns true when JID matches pairedLid", () => {
+    expect(
+      isWhatsAppUserAuthorized("236283431522503@lid", {
+        pairedJid: "6281379292556@s.whatsapp.net",
+        pairedLid: "236283431522503@lid",
+      }),
+    ).toBe(true);
+  });
+
   test("returns true when JID matches pairedJid", () => {
     expect(
       isWhatsAppUserAuthorized("1234567890@s.whatsapp.net", {
         pairedJid: "1234567890@s.whatsapp.net",
+        pairedLid: null,
       }),
     ).toBe(true);
   });
@@ -46,6 +57,7 @@ describe("isWhatsAppUserAuthorized", () => {
     expect(
       isWhatsAppUserAuthorized("9999999999@s.whatsapp.net", {
         pairedJid: "1234567890@s.whatsapp.net",
+        pairedLid: null,
       }),
     ).toBe(false);
   });
@@ -54,6 +66,7 @@ describe("isWhatsAppUserAuthorized", () => {
     expect(
       isWhatsAppUserAuthorized("1234567890@s.whatsapp.net", {
         pairedJid: null,
+        pairedLid: null,
       }),
     ).toBe(false);
   });
@@ -170,6 +183,7 @@ describe("resolveWhatsAppConfigFromSources", () => {
         profileId: "profile_from_file",
         pairingCode: null,
         pairedJid: null,
+        pairedLid: null,
       },
     });
 
@@ -178,6 +192,7 @@ describe("resolveWhatsAppConfigFromSources", () => {
       profileId: "profile_from_file",
       pairingCode: null,
       pairedJid: null,
+      pairedLid: null,
     });
   });
 
@@ -189,10 +204,43 @@ describe("resolveWhatsAppConfigFromSources", () => {
         profileId: "profile_from_file",
         pairingCode: "ABCD1234",
         pairedJid: "9876543210@s.whatsapp.net",
+        pairedLid: null,
       },
     });
 
     expect(resolved?.phoneNumber).toBe("+9876543210");
     expect(resolved?.pairedJid).toBe("9876543210@s.whatsapp.net");
+  });
+});
+
+describe("syncWhatsAppOwnerPairing", () => {
+  let tempHome = "";
+  let homedirSpy: ReturnType<typeof spyOn<typeof os, "homedir">> | null = null;
+
+  afterEach(async () => {
+    homedirSpy?.mockRestore();
+    homedirSpy = null;
+
+    if (tempHome) {
+      await rm(tempHome, { recursive: true, force: true });
+      tempHome = "";
+    }
+  });
+
+  test("auto-pairs owner when WhatsApp JID includes a device suffix", async () => {
+    tempHome = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-core-wa-sync-"));
+    homedirSpy = spyOn(os, "homedir").mockReturnValue(tempHome);
+
+    await saveWhatsAppConfig({ phoneNumber: "+6281379292556" });
+
+    await syncWhatsAppOwnerPairing({
+      ownerJid: "6281379292556:12@s.whatsapp.net",
+      ownerLid: "236283431522503@lid",
+    });
+
+    const saved = await loadWhatsAppConfigFile();
+    expect(saved?.pairedJid).toBe("6281379292556:12@s.whatsapp.net");
+    expect(saved?.pairedLid).toBe("236283431522503@lid");
+    expect(saved?.pairingCode).toBeNull();
   });
 });

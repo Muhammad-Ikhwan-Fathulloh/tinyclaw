@@ -1,6 +1,4 @@
 import {
-  type AuthenticationCreds,
-  type ConnectionState,
   type WASocket,
   makeWASocket,
   useMultiFileAuthState,
@@ -10,10 +8,15 @@ import {
 import {
   getWhatsAppConfigDir,
 } from "@tinyclaw/core/whatsapp-config";
+import {
+  extractInboundText,
+  shouldHandleInboundMessage,
+} from "./inbound-message";
 
 export interface WhatsAppSocketDeps {
   onMessage: (data: { jid: string; text: string }) => Promise<void>;
-  onConnected?: () => void;
+  onConnected?: (me: { id: string; lid?: string | null }) => void;
+  onQr?: (qr: string) => void;
 }
 
 export interface WhatsAppSocketHandle {
@@ -41,19 +44,30 @@ export async function createWhatsAppSocket(
 
       socket = makeWASocket({
         version,
-        auth: state.creds as AuthenticationCreds,
+        auth: state,
         printQRInTerminal: false,
         browser: ["TinyClaw", "Chrome", "4.0.0"] as [string, string, string],
         connectTimeoutMs: 30_000,
         retryRequestDelayMs: 2_000,
+        // ponytail: bridge only needs live messages; skip history + init IQs that race on connect
+        fireInitQueries: false,
+        shouldSyncHistoryMessage: () => false,
+        markOnlineOnConnect: false,
       });
 
       socket.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr) {
+          deps.onQr?.(qr);
+        }
 
         if (connection === "open") {
           console.log("WhatsApp connected.");
-          deps.onConnected?.();
+          const me = state.creds.me;
+          if (me?.id) {
+            deps.onConnected?.({ id: me.id, lid: me.lid ?? null });
+          }
         }
 
         if (connection === "close") {
@@ -78,22 +92,15 @@ export async function createWhatsAppSocket(
       socket.ev.on("messages.upsert", async (m) => {
         if (m.type !== "notify") return;
 
+        const me = state.creds.me;
+
         for (const msg of m.messages) {
-          if (msg.key.fromMe) continue;
-          if (!msg.message) continue;
+          if (!shouldHandleInboundMessage(msg, me)) continue;
 
           const jid = msg.key.remoteJid!;
+          const text = extractInboundText(msg.message);
 
-          if (!jid.endsWith("@s.whatsapp.net")) continue;
-
-          const text =
-            msg.message.conversation ??
-            msg.message.extendedTextMessage?.text ??
-            "";
-
-          if (!text.trim()) continue;
-
-          await deps.onMessage({ jid, text: text.trim() });
+          await deps.onMessage({ jid, text });
         }
       });
     },

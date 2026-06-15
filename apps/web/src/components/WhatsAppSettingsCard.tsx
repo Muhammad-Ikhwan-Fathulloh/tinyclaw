@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { UpdateWhatsAppSettingsRequest } from "@tinyclaw/core/contract";
-import { CopyIcon, RefreshCwIcon } from "lucide-react";
+import { ClipboardPasteIcon, CopyIcon, RefreshCwIcon, ScanQrCodeIcon } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -60,7 +61,8 @@ export function WhatsAppSettingsCard({
   const saveMutation = useSaveWhatsAppSettings();
   const regenerateMutation = useRegenerateWhatsAppPairingCode();
 
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const [phoneDraft, setPhoneDraft] = useState("");
   const [profileId, setProfileId] = useState("profile_default");
   const [hint, setHint] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -71,28 +73,31 @@ export function WhatsAppSettingsCard({
     }
 
     setProfileId(settings.profileId);
-    setPhoneNumber("");
-  }, [settings]);
+  }, [settings?.profileId]);
 
   const configured = settings?.configured === true;
   const paired = Boolean(settings?.pairedJid);
   const pairingCode = settings?.pairingCode ?? null;
   const worker = status?.whatsappWorker;
   const running = worker?.running === true;
-  const canSave = configured || phoneNumber.trim().length > 0;
+  const qrCode = worker?.qrCode ?? null;
+  const canSave = configured || phoneDraft.trim().length > 0;
+  const showQr = configured && !paired && running && qrCode;
 
   const statusLine =
     hint ?? (formError ? formError : null) ?? (loadError ? formatError(loadError) : null);
 
   const headerSubtitle = !configured
-    ? "Step 1: save the phone number for your WhatsApp account"
+    ? "Step 1: paste the phone number for your WhatsApp account"
     : paired && running
       ? "WhatsApp is linked and the bridge is running"
       : paired
         ? "Linked. Start the WhatsApp bridge to receive messages"
-        : pairingCode
-          ? "Step 2: link this number from WhatsApp with the pairing code"
-          : "Step 2: generate a pairing code to finish linking";
+        : showQr
+          ? "Scan the QR code with WhatsApp to link your device"
+          : pairingCode
+            ? "Step 2: link this number from WhatsApp with the pairing code"
+            : "Step 2: generate a pairing code to finish linking";
 
   const statusBadge = !configured
     ? "Not set up"
@@ -117,6 +122,44 @@ export function WhatsAppSettingsCard({
     }
   }
 
+  function readPhoneDraft(): string {
+    return phoneInputRef.current?.value.trim() ?? phoneDraft.trim();
+  }
+
+  function clearPhoneInput() {
+    if (phoneInputRef.current) {
+      phoneInputRef.current.value = "";
+    }
+    setPhoneDraft("");
+  }
+
+  function markPhoneDirty(value: string) {
+    setPhoneDraft(value);
+    setHint(null);
+    if (formError) {
+      setFormError(null);
+    }
+  }
+
+  async function pastePhoneFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const trimmed = text.trim();
+      if (!trimmed) {
+        setHint("Clipboard is empty.");
+        return;
+      }
+
+      if (phoneInputRef.current) {
+        phoneInputRef.current.value = trimmed;
+        phoneInputRef.current.focus();
+      }
+      markPhoneDirty(trimmed);
+    } catch {
+      setHint("Use ⌘V to paste, or allow clipboard access.");
+    }
+  }
+
   function handleSave() {
     setFormError(null);
     setHint(null);
@@ -125,13 +168,14 @@ export function WhatsAppSettingsCard({
       profileId: profileId.trim() || "profile_default",
     };
 
-    if (phoneNumber.trim()) {
-      request.phoneNumber = phoneNumber.trim();
+    const phoneNumber = readPhoneDraft();
+    if (phoneNumber) {
+      request.phoneNumber = phoneNumber;
     }
 
     saveMutation.mutate(request, {
       onSuccess: (saved) => {
-        setPhoneNumber("");
+        clearPhoneInput();
         if (saved.pairedJid) {
           setHint("Saved.");
         } else if (saved.pairingCode) {
@@ -205,25 +249,36 @@ export function WhatsAppSettingsCard({
         description="Use the number linked to your WhatsApp account"
       >
         <InputGroup className="w-full min-w-[12rem] sm:w-[16rem]">
-          <InputGroupInput
+          <input
+            ref={phoneInputRef}
             id="whatsapp-phone-number"
-            type="tel"
+            data-slot="input-group-control"
+            type="text"
+            inputMode="tel"
             autoComplete="tel"
             placeholder={
               configured && settings?.phoneNumberMasked
                 ? `Saved (${settings.phoneNumberMasked})`
-                : "e.g. 628123456789"
+                : "Phone number"
             }
-            value={phoneNumber}
+            defaultValue=""
             disabled={saveMutation.isPending}
-            onChange={(event) => {
-              setPhoneNumber(event.target.value);
-              setHint(null);
-              if (formError) {
-                setFormError(null);
-              }
+            className="h-8 w-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-transparent"
+            onInput={(event) => {
+              markPhoneDirty(event.currentTarget.value);
             }}
           />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              type="button"
+              aria-label="Paste phone number"
+              disabled={saveMutation.isPending}
+              onClick={() => void pastePhoneFromClipboard()}
+            >
+              <ClipboardPasteIcon className="size-3.5" aria-hidden="true" />
+              Paste
+            </InputGroupButton>
+          </InputGroupAddon>
         </InputGroup>
       </SettingsRow>
 
@@ -232,31 +287,14 @@ export function WhatsAppSettingsCard({
           <SettingsRow
             label="Pairing code"
             description={
-              paired
-                ? "This number is linked. Generate a new code only if you need to relink."
-                : pairingCode
-                  ? "Open Linked Devices in WhatsApp and enter this code."
+              pairingCode
+                ? "Open Linked Devices in WhatsApp and enter this code."
+                : paired
+                  ? "This number is linked. Generate a new code only if you need to relink."
                   : "Generate a code, then enter it in WhatsApp."
             }
           >
-            {paired ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={regenerateMutation.isPending || saveMutation.isPending}
-                onClick={handleRegeneratePairingCode}
-              >
-                {regenerateMutation.isPending ? (
-                  <Spinner />
-                ) : (
-                  <>
-                    <RefreshCwIcon className="size-3.5" aria-hidden="true" />
-                    New code
-                  </>
-                )}
-              </Button>
-            ) : pairingCode ? (
+            {pairingCode ? (
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <code className="rounded-md border border-border bg-background px-2.5 py-1 text-sm tracking-widest">
                   {pairingCode}
@@ -287,6 +325,23 @@ export function WhatsAppSettingsCard({
                   )}
                 </Button>
               </div>
+            ) : paired ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={regenerateMutation.isPending || saveMutation.isPending}
+                onClick={handleRegeneratePairingCode}
+              >
+                {regenerateMutation.isPending ? (
+                  <Spinner />
+                ) : (
+                  <>
+                    <RefreshCwIcon className="size-3.5" aria-hidden="true" />
+                    New code
+                  </>
+                )}
+              </Button>
             ) : (
               <Button
                 type="button"
@@ -306,12 +361,31 @@ export function WhatsAppSettingsCard({
             )}
           </SettingsRow>
 
-          {!paired && pairingCode ? (
+          {pairingCode ? (
             <ol className="list-decimal space-y-1 px-4 py-3 pl-8 text-xs text-muted-foreground">
               <li>Open WhatsApp on your phone</li>
               <li>Go to Settings, then Linked Devices</li>
               <li>Choose Link with phone number and enter this code</li>
             </ol>
+          ) : null}
+
+          {showQr ? (
+            <div className="space-y-3 px-4 py-4">
+              <div className="flex items-center gap-2">
+                <ScanQrCodeIcon className="size-4 text-primary" aria-hidden />
+                <p className="text-sm font-medium text-foreground">Scan QR code</p>
+              </div>
+              <div className="flex justify-center">
+                <div className="inline-flex rounded-xl border border-border bg-white p-3">
+                  <QRCodeSVG value={qrCode} size={180} />
+                </div>
+              </div>
+              <ol className="list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+                <li>Open WhatsApp on your phone</li>
+                <li>Go to Settings, then Linked Devices</li>
+                <li>Tap <strong>Link a Device</strong> and scan this code</li>
+              </ol>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -322,10 +396,30 @@ export function WhatsAppSettingsCard({
             value={profileId}
             disabled={saveMutation.isPending || profiles.length === 0}
             onValueChange={(value) => {
-              if (value) {
-                setProfileId(String(value));
-                setHint(null);
+              if (!value) {
+                return;
               }
+
+              const nextProfileId = String(value);
+              setProfileId(nextProfileId);
+              setHint(null);
+              setFormError(null);
+
+              if (!configured || nextProfileId === settings?.profileId) {
+                return;
+              }
+
+              saveMutation.mutate(
+                { profileId: nextProfileId.trim() || "profile_default" },
+                {
+                  onSuccess: () => {
+                    setHint("Reply profile saved.");
+                  },
+                  onError: (error) => {
+                    setFormError(formatError(error));
+                  },
+                },
+              );
             }}
           >
             <SelectTrigger id="whatsapp-profile" className="w-[11rem] sm:w-[13rem]">

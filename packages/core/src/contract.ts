@@ -75,6 +75,7 @@ export interface WhatsAppWorkerStatus {
   configured: boolean;
   paired: boolean;
   running: boolean;
+  qrCode: string | null;
 }
 
 export interface LlmUsageStats {

@@ -3,7 +3,10 @@ import { ensureServerRunning, stopSpawnedServer } from "@tinyclaw/core/ensure-se
 import {
   clearWhatsAppWorkerHeartbeat,
   writeWhatsAppWorkerHeartbeat,
+  writeWhatsAppQrCode,
+  clearWhatsAppQrCode,
 } from "@tinyclaw/core/whatsapp-worker";
+import { syncWhatsAppOwnerPairing } from "@tinyclaw/core/whatsapp-config";
 import { createWhatsAppSocket } from "./socket";
 import { createChatHandler } from "./chat-handler";
 import { loadConfig } from "./config";
@@ -20,6 +23,7 @@ registerCleanupHandlers(() => {
     clearInterval(heartbeatTimer);
   }
   void clearWhatsAppWorkerHeartbeat();
+  void clearWhatsAppQrCode();
   stopSpawnedServer(spawnedChild);
 });
 
@@ -53,8 +57,16 @@ try {
 
   const socket = await createWhatsAppSocket({
     onMessage: handleMessage,
-    onConnected: () => {
+    onConnected: (me) => {
       console.log("WhatsApp bridge is listening for messages.");
+      void clearWhatsAppQrCode();
+      void syncWhatsAppOwnerPairing({
+        ownerJid: me.id,
+        ownerLid: me.lid,
+      }).then(() => authStore.reload());
+    },
+    onQr: (qr) => {
+      void writeWhatsAppQrCode(qr);
     },
   });
 

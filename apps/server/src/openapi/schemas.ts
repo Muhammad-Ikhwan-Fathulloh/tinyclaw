@@ -1053,6 +1053,7 @@ export const openApiSchemas = {
       configured: { type: "boolean" },
       paired: { type: "boolean" },
       running: { type: "boolean" },
+      qrCode: { type: "string", nullable: true },
     },
   },
   LlmUsageStats: {
