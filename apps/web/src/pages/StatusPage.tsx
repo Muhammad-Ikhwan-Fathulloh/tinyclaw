@@ -6,12 +6,10 @@ import {
   CircleGaugeIcon,
   ClockIcon,
   CoinsIcon,
-  KanbanIcon,
   MessageCircleIcon,
   ServerIcon,
   SmartphoneIcon,
   SparklesIcon,
-  WorkflowIcon,
   XCircleIcon,
   ZapIcon,
   type LucideIcon,
@@ -119,7 +117,7 @@ function StatusDashboard({ status }: { status: SystemStatusResponse }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
+      <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
         {services.map((service) => {
           if (service.title === "Telegram") {
             return (
@@ -221,7 +219,7 @@ function LlmUsageSection({ usage }: { usage: LlmUsageStatus }) {
       ) : (
         <div className="space-y-4 p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)]">
-            <div className="rounded-lg border border-border bg-gradient-to-br from-primary/5 via-card to-card p-5 dark:from-primary/10">
+            <div className="rounded-lg border border-border p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="type-label">
@@ -445,12 +443,7 @@ function SummaryStrip({
 }) {
   return (
     <div
-      className={cn(
-        "flex flex-wrap items-center gap-3 border-b border-border px-5 py-4 sm:gap-4",
-        summary.tone === "ok" && "bg-emerald-50/40 dark:bg-emerald-950/10",
-        summary.tone === "warn" && "bg-amber-50/40 dark:bg-amber-950/10",
-        summary.tone === "bad" && "bg-destructive/5",
-      )}
+      className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4 sm:gap-4"
     >
       <div className={cn(iconTileClass, "bg-background/70")}>
         <ToneIcon tone={summary.tone} className="size-5" />
@@ -737,24 +730,13 @@ function StatusSkeleton() {
 }
 
 function buildServiceColumns(status: SystemStatusResponse) {
-  const { server, automationWorker, telegramWorker, whatsappWorker } = status;
+  const { server, telegramWorker, whatsappWorker } = status;
 
   return [
     {
       icon: ServerIcon,
       title: "Server",
       ...serverServiceStatus(server),
-    },
-    {
-      icon: WorkflowIcon,
-      title: "Automation",
-      ...workerServiceStatus(automationWorker.ok, "Stopped"),
-    },
-    {
-      icon: KanbanIcon,
-      title: "Tasks",
-      status: "Healthy",
-      tone: "ok" as const,
     },
     {
       icon: MessageCircleIcon,
@@ -782,15 +764,6 @@ function serverServiceStatus(server: SystemStatusResponse["server"]): {
   }
 
   return { status: "Healthy", tone: "ok" };
-}
-
-function workerServiceStatus(
-  ok: boolean,
-  offlineLabel: string,
-): { status: string; tone: ServiceStatusTone } {
-  return ok
-    ? { status: "Healthy", tone: "ok" }
-    : { status: offlineLabel, tone: "bad" };
 }
 
 function telegramServiceStatus(
