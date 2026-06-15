@@ -34,9 +34,10 @@ export class WorkerManagerService {
     }
 
     try {
-      const pm2 = await import("pm2");
+      const mod = await import("pm2");
+      const pm2 = (mod.default ?? mod) as NonNullable<typeof import("pm2")>;
       this.pm2Module = pm2;
-      return pm2 as NonNullable<typeof import("pm2")>;
+      return pm2;
     } catch {
       throw new Error("PM2 is not available. Install it with: npm install -g pm2");
     }
