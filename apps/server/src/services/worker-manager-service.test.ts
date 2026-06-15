@@ -5,6 +5,7 @@ function createMockPm2() {
   const mockPm2 = {
     connect: mock((cb: (err: Error | null) => void) => cb(null)),
     disconnect: mock(() => {}),
+    delete: mock((_name: string, cb: (err: Error | null) => void) => cb(null)),
     start: mock((_opts: unknown, cb: (err: Error | null) => void) => cb(null)),
     stop: mock((_name: string, cb: (err: Error | null) => void) => cb(null)),
     restart: mock((_name: string, cb: (err: Error | null) => void) => cb(null)),
@@ -52,10 +53,12 @@ describe("WorkerManagerService", () => {
 
       await service.startWorker("telegram");
 
+      expect(mockPm2.delete).toHaveBeenCalledWith("telegram", expect.any(Function));
       expect(mockPm2.start).toHaveBeenCalledTimes(1);
       const opts = (mockPm2.start as ReturnType<typeof mock>).mock.calls[0][0];
       expect(opts.script).toBe("bun");
       expect(opts.args).toContain("apps/platform/telegram/src/index.ts");
+      expect(opts.interpreter).toBeUndefined();
       expect(opts.name).toBe("telegram");
     });
 
@@ -68,7 +71,9 @@ describe("WorkerManagerService", () => {
       expect(mockPm2.start).toHaveBeenCalledTimes(1);
       const opts = (mockPm2.start as ReturnType<typeof mock>).mock.calls[0][0];
       expect(opts.name).toBe("whatsapp");
+      expect(opts.script).toBe("bun");
       expect(opts.args).toContain("apps/platform/whatsapp/src/index.ts");
+      expect(opts.interpreter).toBeUndefined();
     });
 
     test("throws for unknown worker", async () => {
@@ -104,13 +109,14 @@ describe("WorkerManagerService", () => {
   });
 
   describe("restartWorker", () => {
-    test("restarts worker by name", async () => {
+    test("restarts worker by deleting and starting fresh", async () => {
       const mockPm2 = createMockPm2();
       const service = new WorkerManagerService(projectRoot, mockPm2);
 
       await service.restartWorker("telegram");
 
-      expect(mockPm2.restart).toHaveBeenCalledWith("telegram", expect.any(Function));
+      expect(mockPm2.delete).toHaveBeenCalledWith("telegram", expect.any(Function));
+      expect(mockPm2.start).toHaveBeenCalledTimes(1);
     });
 
     test("throws for unknown worker", async () => {

@@ -17,3 +17,5 @@ data/logs/*
 .agents/
 apps/data/*
 .cursor/
+docs/plans/*
+

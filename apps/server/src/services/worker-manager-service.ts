@@ -68,6 +68,7 @@ export class WorkerManagerService {
 
     await this.withPm2(async (pm2) => {
       const script = WORKER_SCRIPTS[name]!;
+      await promisifyPm2<void>((cb) => pm2.delete(name, cb)).catch(() => {});
       await promisifyPm2<void>((cb) =>
         pm2.start(
           {
@@ -75,7 +76,6 @@ export class WorkerManagerService {
             args: ["run", script],
             name,
             cwd: this.projectRoot,
-            interpreter: "bun",
             env: {
               NODE_ENV: process.env.NODE_ENV ?? "development",
             },
@@ -101,9 +101,7 @@ export class WorkerManagerService {
       throw new Error(`Unknown worker: ${name}`);
     }
 
-    await this.withPm2(async (pm2) => {
-      await promisifyPm2<void>((cb) => pm2.restart(name, cb));
-    });
+    await this.startWorker(name);
   }
 
   private pm2ProcessToInfo(

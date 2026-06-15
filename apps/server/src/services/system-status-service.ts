@@ -25,8 +25,10 @@ export class SystemStatusService {
 
     const statuses = await this.workerManager.getAllWorkerStatuses();
 
-    const telegramStatus = this.resolveWorkerStatus("telegram", statuses.telegram);
-    const whatsappStatus = this.resolveWorkerStatus("whatsapp", statuses.whatsapp);
+    const [telegramStatus, whatsappStatus] = await Promise.all([
+      this.resolveWorkerStatus("telegram", statuses.telegram),
+      this.resolveWorkerStatus("whatsapp", statuses.whatsapp),
+    ]);
 
     return {
       server: this.getServerStatus(),
