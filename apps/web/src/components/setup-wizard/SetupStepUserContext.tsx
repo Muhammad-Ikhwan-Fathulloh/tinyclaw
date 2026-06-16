@@ -25,7 +25,7 @@ export function SetupStepUserContext({ onNext, onSkip, onBack }: SetupStepUserCo
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-border bg-card">
-        <UserContextSettings onSaveSuccess={onNext} autoInit={true} />
+        <UserContextSettings autoInit={true} />
       </div>
 
       <div className="rounded-md border border-border bg-card px-4 py-3">
@@ -59,13 +59,23 @@ export function SetupStepUserContext({ onNext, onSkip, onBack }: SetupStepUserCo
           Back
         </Button>
 
-        <button
-          type="button"
-          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
-          onClick={onSkip}
-        >
-          Set up later
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+            onClick={onSkip}
+          >
+            Set up later
+          </button>
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={onNext}
+          >
+            Continue
+          </Button>
+        </div>
       </div>
     </div>
   );
