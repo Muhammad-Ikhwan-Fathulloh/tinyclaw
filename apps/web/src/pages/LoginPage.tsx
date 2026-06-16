@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -35,11 +34,12 @@ export function LoginPage() {
 
   return (
     <div className="flex h-svh items-center justify-center bg-background">
-      <Card className="w-full max-w-sm p-6">
-        <div className="mb-6 flex items-center justify-center">
-          <img src="/tinyclaw.png" alt="TinyClaw" className="size-12 rounded-lg" />
+      <div className="w-full max-w-sm space-y-6">
+        <div className="flex flex-col items-center text-center">
+          <img src="/tinyclaw.png" alt="TinyClaw" className="mb-4 size-14 rounded-xl" />
+          <h1 className="text-xl font-semibold tracking-tight">Sign in to TinyClaw</h1>
+          <p className="text-sm text-muted-foreground">Enter your credentials to access your account.</p>
         </div>
-        <h1 className="mb-6 text-center text-xl font-semibold">Sign in to TinyClaw</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium">
@@ -76,7 +76,7 @@ export function LoginPage() {
             {isSubmitting ? "Signing in..." : "Sign in"}
           </Button>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }
