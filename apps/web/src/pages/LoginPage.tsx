@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/auth-context";
+import { useAppContext } from "@/context/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -10,11 +11,16 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, isAuthenticated } = useAuth();
+  const { health } = useAppContext();
   const navigate = useNavigate();
 
   if (isAuthenticated) {
     navigate("/chat", { replace: true });
     return null;
+  }
+
+  if (health?.userConfigured === false) {
+    return <Navigate to="/setup" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
