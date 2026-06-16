@@ -1304,9 +1304,7 @@ export function ProfilesPage() {
                           .
                         </p>
                       ) : detail.skills.length === 0 ? (
-                        <p className="type-body text-xs">
-                          No skills assigned. Add a new skill or assign an existing one.
-                        </p>
+                        null
                       ) : (
                         <ul className="divide-y divide-border rounded-md border border-border">
                           {detail.skills.map((skill) => (
