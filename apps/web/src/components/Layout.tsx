@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
+  LogOutIcon,
 } from "lucide-react";
 import type { SVGProps } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
@@ -13,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAppContext } from "@/context/app-context";
+import { useAuth } from "@/context/auth-context";
 import { usePrefetchAppData } from "@/hooks/use-app-queries";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ export function Layout() {
   const page = pageIdFromPath(location.pathname) ?? "chat";
   const chatProfileId = chatProfileIdFromPath(location.pathname);
   const { error } = useAppContext();
+  const { logout, user } = useAuth();
   const prefetchAppData = usePrefetchAppData();
   const { collapsed, toggle } = useSidebarCollapsed();
   const activeNav = findNavItem(page);
@@ -109,7 +112,7 @@ export function Layout() {
           <div
             className={cn(
               "sidebar-nav-footer flex shrink-0 border-t border-border/50",
-              collapsed ? "justify-center px-2 py-2.5" : "px-3 py-3",
+              collapsed ? "flex-col justify-center gap-1 px-2 py-2.5" : "items-center gap-2 px-3 py-3",
             )}
           >
             <SidebarNavButton
@@ -120,6 +123,21 @@ export function Layout() {
               to={navHrefForPage("settings")}
               onPrefetch={prefetchAppData}
             />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 text-muted-foreground/70 hover:text-foreground"
+                  onClick={logout}
+                >
+                  <LogOutIcon className="sidebar-nav-icon" strokeWidth={1.75} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {user?.email ?? "Log out"}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </aside>
 
