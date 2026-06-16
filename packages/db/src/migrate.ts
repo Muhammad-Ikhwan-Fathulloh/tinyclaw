@@ -16,6 +16,7 @@ export function migrateDatabase(db: Database): void {
   migrateSessionsTable(db);
   migrateMcpTables(db);
   migrateSkillsTables(db);
+  migrateUsersTable(db);
 }
 
 function migrateMcpTables(db: Database): void {
@@ -98,6 +99,19 @@ function migrateTasksTable(db: Database): void {
       ALTER TABLE tasks ADD COLUMN session_id TEXT REFERENCES sessions (id) ON DELETE SET NULL;
     `);
   }
+}
+
+function migrateUsersTable(db: Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY NOT NULL,
+      email TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email);
+  `);
 }
 
 function migrateSessionsTable(db: Database): void {

@@ -164,3 +164,13 @@ CREATE TABLE IF NOT EXISTS llm_usage_stats (
   tracked_since TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY NOT NULL,
+  email TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email);

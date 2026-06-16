@@ -19,6 +19,7 @@ import type {
   StoredTaskRecord,
   StoredTaskRunRecord,
   StoredToolRecord,
+  StoredUserRecord,
 } from "../types";
 
 export interface SqliteDatabase {
@@ -149,6 +150,14 @@ interface McpServerRow {
   status: string;
   last_error: string | null;
   cached_tools: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UserRow {
+  id: string;
+  email: string;
+  password_hash: string;
   created_at: string;
   updated_at: string;
 }
@@ -442,7 +451,28 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
       updated_at = excluded.updated_at
   `);
 
+  const getUserByEmailStmt = db.prepare("SELECT * FROM users WHERE email = ?");
+  const createUserStmt = db.prepare(`
+    INSERT INTO users (id, email, password_hash, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
   return {
+    async getUserByEmail(email) {
+      const row = getUserByEmailStmt.get(email) as UserRow | null;
+      return row ? toUserRecord(row) : null;
+    },
+
+    async createUser(record) {
+      createUserStmt.run(
+        record.id,
+        record.email,
+        record.passwordHash,
+        record.createdAt,
+        record.updatedAt,
+      );
+    },
+
     async listAutomations() {
       return listAutomationsStmt.all().map((row) => toAutomationRecord(row as AutomationRow));
     },
@@ -1038,6 +1068,16 @@ function toLlmUsageStatsRecord(row: LlmUsageStatsRow): StoredLlmUsageStatsRecord
     outputTokens: row.output_tokens,
     estimatedCostUsd: row.estimated_cost_usd,
     trackedSince: row.tracked_since,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toUserRecord(row: UserRow): StoredUserRecord {
+  return {
+    id: row.id,
+    email: row.email,
+    passwordHash: row.password_hash,
+    createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }

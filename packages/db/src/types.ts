@@ -147,7 +147,18 @@ export interface StoredMcpServerRecord {
   updatedAt: string;
 }
 
+export interface StoredUserRecord {
+  id: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DatabaseAdapter {
+  getUserByEmail(email: string): Promise<StoredUserRecord | null>;
+  createUser(record: StoredUserRecord): Promise<void>;
+
   listAutomations(): Promise<StoredAutomationRecord[]>;
   getAutomation(id: string): Promise<StoredAutomationRecord | null>;
   upsertAutomation(record: StoredAutomationRecord): Promise<void>;
