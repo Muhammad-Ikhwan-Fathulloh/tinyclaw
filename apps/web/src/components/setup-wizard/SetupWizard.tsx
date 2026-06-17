@@ -28,8 +28,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const goNext = useCallback(() => {
     setCurrentStep((prev) => {
-      if (prev >= 4) {
-        return 4;
+      if (prev >= 5) {
+        return 5;
       }
       return (prev + 1) as SetupStepId;
     });
@@ -37,8 +37,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const goSkip = useCallback(() => {
     setCurrentStep((prev) => {
-      if (prev >= 4) {
-        return 4;
+      if (prev >= 5) {
+        return 5;
       }
       return (prev + 1) as SetupStepId;
     });
@@ -62,7 +62,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   }, [navigate, onComplete]);
 
   const handleStepAdvance = useCallback(() => {
-    if (currentStep >= 4) {
+    if (currentStep >= 5) {
       handleComplete();
     } else {
       goNext();
@@ -70,7 +70,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   }, [currentStep, goNext, handleComplete]);
 
   const handleSkip = useCallback(() => {
-    if (currentStep >= 4) {
+    if (currentStep >= 5) {
       handleComplete();
     } else {
       goSkip();
