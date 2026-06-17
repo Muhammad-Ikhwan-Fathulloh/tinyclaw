@@ -1,4 +1,5 @@
 <p align="center"> <img alt="TinyClaw logo" src="tinyclaw.png" width="188"> </p>
+
 # TinyClaw
 
 > Deploy your own personal AI Assistant as easy as using WordPress.
