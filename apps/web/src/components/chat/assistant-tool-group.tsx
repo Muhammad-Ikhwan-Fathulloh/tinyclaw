@@ -13,10 +13,12 @@ import { cn } from "@/lib/utils";
 
 export type AssistantTurnSegment =
   | { kind: "work"; thinking?: ChatListItem; tools: ChatListItem[] }
-  | { kind: "text"; message: ChatListItem };
+  | { kind: "text"; message: ChatListItem; thinking?: ChatListItem };
 
 export function segmentAssistantTurn(messages: ChatListItem[]): AssistantTurnSegment[] {
   const segments: AssistantTurnSegment[] = [];
+  // eslint-disable-next-line no-console
+  console.log("[segmentAssistantTurn] messages count:", messages.length, "last thinking:", messages.at(-1)?.thinking?.slice(0, 30), "last thinkingStreaming:", messages.at(-1)?.thinkingStreaming, "last content:", messages.at(-1)?.content.slice(0, 30));
 
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
@@ -50,7 +52,7 @@ export function segmentAssistantTurn(messages: ChatListItem[]): AssistantTurnSeg
       }
 
       if (hasText) {
-        segments.push({ kind: "text", message });
+        segments.push({ kind: "text", message, ...(hasThinking ? { thinking: message } : {}) });
       }
     }
   }
@@ -101,6 +103,7 @@ export function AssistantTurnSegmentView({ segment }: { segment: AssistantTurnSe
   return (
     <Message from="assistant" className="max-w-full mr-0 ml-0 items-start justify-start">
       <MessageContent className="max-w-full ml-0 group-[.is-user]:ml-0">
+        {segment.thinking ? <ThinkingBlock message={segment.thinking} /> : null}
         <AssistantTextContent message={segment.message} />
       </MessageContent>
     </Message>
@@ -180,6 +183,9 @@ function ThinkingBlock({ message }: { message: ChatListItem }) {
     }
   }, [isStreaming]);
 
+  // eslint-disable-next-line no-console
+  console.log("[ThinkingBlock] id:", message.id, "isStreaming:", isStreaming, "textLength:", text?.length, "hasText:", !!text);
+
   if (!text && !isStreaming) {
     return null;
   }
@@ -206,6 +212,9 @@ function ThinkingInline({
   isLast: boolean;
 }) {
   const text = message.thinking?.trim();
+
+  // eslint-disable-next-line no-console
+  console.log("[ThinkingInline] id:", message.id, "textLength:", text?.length, "hasText:", !!text);
 
   if (!text) {
     return null;

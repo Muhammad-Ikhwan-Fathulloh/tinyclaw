@@ -134,11 +134,8 @@ function AssistantTurn({
         <AssistantTurnSegmentView
           key={
             segment.kind === "work"
-              ? [
-                  segment.thinking?.id ?? "thought",
-                  ...segment.tools.map((message) => message.id),
-                ].join(":")
-              : segment.message.id
+              ? `work:${segment.thinking?.id ?? "thought"}:${segment.tools.map((message) => message.id).join(":")}`
+              : `text:${segment.message.id}`
           }
           segment={segment}
         />
