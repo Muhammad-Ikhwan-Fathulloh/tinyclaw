@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS automations (
   name TEXT NOT NULL,
   version INTEGER NOT NULL,
   definition TEXT NOT NULL,
-  profile_id TEXT NOT NULL DEFAULT 'profile_default',
+  profile_id TEXT NOT NULL DEFAULT 'default',
   enabled INTEGER DEFAULT 1 NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,

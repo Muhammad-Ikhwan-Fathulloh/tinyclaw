@@ -7,7 +7,7 @@ import {
 } from "./commands";
 
 const profile: ProfileSummary = {
-  id: "profile_default",
+  id: "default",
   name: "Default",
   model: "gpt-4o",
   isSuper: false,

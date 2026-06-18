@@ -43,7 +43,7 @@ describe("seed built-in tools", () => {
     const now = new Date().toISOString();
 
     await db.upsertProfile({
-      id: "profile_default",
+      id: "default",
       name: "Default Bot",
       systemPrompt: "default",
       model: null,
@@ -52,7 +52,7 @@ describe("seed built-in tools", () => {
       updatedAt: now,
     });
     await db.upsertProfile({
-      id: "profile_super_bot",
+      id: "super_bot",
       name: "Super Bot",
       systemPrompt: "super",
       model: null,
@@ -74,8 +74,8 @@ describe("seed built-in tools", () => {
 
     expect(await db.getTool(BUILTIN_TOOL_IDS.create_skill)).not.toBeNull();
 
-    const defaultTools = await db.listToolsForProfile("profile_default");
-    const superTools = await db.listToolsForProfile("profile_super_bot");
+    const defaultTools = await db.listToolsForProfile("default");
+    const superTools = await db.listToolsForProfile("super_bot");
     const customTools = await db.listToolsForProfile("profile_custom");
 
     expect(defaultTools.map((tool) => tool.name)).toContain("create_skill");

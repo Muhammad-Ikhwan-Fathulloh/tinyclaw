@@ -47,7 +47,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -78,7 +78,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -109,7 +109,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -145,7 +145,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -175,7 +175,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "6281379292556", profileId: "profile_default" },
+        config: { phoneNumber: "6281379292556", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -205,7 +205,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -236,7 +236,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -267,7 +267,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -298,7 +298,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -335,7 +335,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -365,7 +365,7 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
@@ -383,7 +383,7 @@ describe("createChatHandler", () => {
     await withTempHome(async (homeDir) => {
       await writeWhatsAppConfigIni(homeDir, {
         phoneNumber: "1234567890",
-        profileId: "profile_default",
+        profileId: "default",
         pairedJid: PAIRED_JID,
       });
 
@@ -397,14 +397,14 @@ describe("createChatHandler", () => {
 
       const handleMessage = createChatHandler({
         client,
-        config: { phoneNumber: "1234567890", profileId: "profile_default" },
+        config: { phoneNumber: "1234567890", profileId: "default" },
         authStore,
         sessionStore,
         getSocket: () => socket as any,
       });
 
       await handleMessage({ jid: PAIRED_JID, text: "hello" });
-      expect(calls.profileIds).toEqual(["profile_default"]);
+      expect(calls.profileIds).toEqual(["default"]);
 
       await writeWhatsAppConfigIni(homeDir, {
         phoneNumber: "1234567890",
@@ -413,7 +413,7 @@ describe("createChatHandler", () => {
       });
 
       await handleMessage({ jid: PAIRED_JID, text: "hello again" });
-      expect(calls.profileIds).toEqual(["profile_default", "profile_tensetutor"]);
+      expect(calls.profileIds).toEqual(["default", "profile_tensetutor"]);
     });
   });
 });

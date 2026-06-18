@@ -26,7 +26,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -60,7 +60,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -90,7 +90,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -124,7 +124,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -159,7 +159,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -205,7 +205,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -237,7 +237,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -270,7 +270,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -303,7 +303,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -347,7 +347,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -398,7 +398,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -451,7 +451,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -495,7 +495,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -557,7 +557,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -617,7 +617,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -658,7 +658,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -691,7 +691,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });
@@ -723,7 +723,7 @@ describe("createChatHandler security", () => {
       );
       const handleMessage = createChatHandler({
         client,
-        config: { botToken: "1234567890:TEST", profileId: "profile_default" },
+        config: { botToken: "1234567890:TEST", profileId: "default" },
         authStore,
         sessionStore,
       });

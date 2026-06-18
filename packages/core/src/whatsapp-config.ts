@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { rm } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseIni, pathExists, readTextOrNull, removeFile, writePrivateTextFile } from "./fs";
+import { getUserConfigDir } from "./user-config";
 
-export const DEFAULT_WHATSAPP_PROFILE_ID = "profile_default";
+export const DEFAULT_WHATSAPP_PROFILE_ID = "default";
 
 export interface WhatsAppConfigFile {
   phoneNumber: string;
@@ -28,7 +28,7 @@ export interface UpdateWhatsAppSettingsInput {
 }
 
 export function getWhatsAppConfigDir(): string {
-  return join(homedir(), ".tinyclaw", "whatsapp");
+  return join(getUserConfigDir(), "whatsapp");
 }
 
 export function getWhatsAppConfigPath(): string {

@@ -1,5 +1,5 @@
-export const SUPER_BOT_PROFILE_ID = "profile_super_bot";
-export const DEFAULT_PROFILE_ID = "profile_default";
+export const SUPER_BOT_PROFILE_ID = "super_bot";
+export const DEFAULT_PROFILE_ID = "default";
 export const LLM_USAGE_STATS_ID = "default";
 
 export const SUPER_BOT_SYSTEM_PROMPT = `You are Super Bot, the TinyClaw orchestrator.
@@ -80,4 +80,3 @@ When creating a persistent tool:
 - A tool is registered after list_tools, write_file, and create_tool succeed
 - Do not call assign_tool_to_profile until the user confirms which profile(s) should receive the tool
 - Never assign a newly created tool to all profiles without explicit user approval in chat`;
-

@@ -29,7 +29,7 @@ describe("AutomationScheduler", () => {
         prompt: "Ping",
         trigger: { type: "schedule", cron: "0 * * * *", timezone: "UTC" },
       },
-      "profile_default",
+      "default",
     );
 
     const runner = {

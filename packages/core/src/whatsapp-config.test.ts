@@ -177,7 +177,7 @@ describe("saveWhatsAppConfig", () => {
 
   test("allows first save with profile only", async () => {
     await useTempWhatsAppHome(async () => {
-      const result = await saveWhatsAppConfig({ profileId: "profile_default" });
+      const result = await saveWhatsAppConfig({ profileId: "default" });
       expect(result.configured).toBe(true);
     });
   });
@@ -333,7 +333,7 @@ describe("syncWhatsAppOwnerPairing", () => {
     tempHome = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-core-wa-sync-"));
     homedirSpy = spyOn(os, "homedir").mockReturnValue(tempHome);
 
-    await saveWhatsAppConfig({ profileId: "profile_default" });
+    await saveWhatsAppConfig({ profileId: "default" });
 
     await syncWhatsAppOwnerPairing({
       ownerJid: "6281379292556:12@s.whatsapp.net",
@@ -375,7 +375,7 @@ describe("syncWhatsAppOwnerPairing", () => {
       [
         "# TinyClaw WhatsApp bridge",
         "phone_number=+6281379292556",
-        "profile_id=profile_default",
+        "profile_id=default",
         "pairing_code=ABCD1234",
         "paired_jid=6281379292556@s.whatsapp.net",
         "",
@@ -405,7 +405,7 @@ describe("syncWhatsAppOwnerPairing", () => {
       [
         "# TinyClaw WhatsApp bridge",
         "phone_number=6281379292556",
-        "profile_id=profile_default",
+        "profile_id=default",
         "paired_jid=6281379292556@s.whatsapp.net",
         "paired_lid=104784384290844@lid",
         "",

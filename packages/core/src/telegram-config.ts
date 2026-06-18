@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseIni, readTextOrNull, writePrivateTextFile } from "./fs";
+import { getUserConfigDir } from "./user-config";
 
-export const DEFAULT_TELEGRAM_PROFILE_ID = "profile_default";
+export const DEFAULT_TELEGRAM_PROFILE_ID = "default";
 
 export interface TelegramConfigFile {
   botToken: string;
@@ -29,7 +29,7 @@ export interface UpdateTelegramSettingsInput {
 }
 
 export function getTelegramConfigDir(): string {
-  return join(homedir(), ".tinyclaw", "telegram");
+  return join(getUserConfigDir(), "telegram");
 }
 
 export function getTelegramConfigPath(): string {

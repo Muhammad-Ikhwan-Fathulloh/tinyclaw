@@ -25,9 +25,9 @@ describe("skill paths", () => {
     configDir = await mkdtemp(path.join(tmpdir(), "tinyclaw-paths-test-"));
     process.env.TINYCLAW_CONFIG_DIR = configDir;
 
-    await expect(resolveSkillDiscoveryDirs({ profileId: "profile_default" })).resolves.toEqual([
+    await expect(resolveSkillDiscoveryDirs({ profileId: "default" })).resolves.toEqual([
       path.join(configDir, "agent", "skills"),
-      path.join(configDir, "profiles", "profile_default", "skills"),
+      path.join(configDir, "profiles", "default", "skills"),
     ]);
   });
 

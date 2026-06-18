@@ -135,7 +135,7 @@ export function createMockClient(
   const client = {
     createSession: async (_channel, options = {}) => {
       calls.createSession += 1;
-      calls.profileIds.push(options.profileId ?? "profile_default");
+      calls.profileIds.push(options.profileId ?? "default");
       return session;
     },
     createChatSession: () => session,
@@ -171,7 +171,7 @@ export async function writeWhatsAppConfigIni(
   const lines = [
     "# TinyClaw WhatsApp bridge",
     `phone_number=${config.phoneNumber}`,
-    `profile_id=${config.profileId ?? "profile_default"}`,
+    `profile_id=${config.profileId ?? "default"}`,
   ];
 
   if (config.pairingCode) {

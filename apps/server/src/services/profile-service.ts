@@ -24,6 +24,7 @@ import {
   DEFAULT_THINKING_EFFORT,
   DEFAULT_THINKING_ENABLED,
   createId,
+  createProfileId,
   deleteKnowledgeBaseDocument as removeKnowledgeBaseDocument,
   deleteProfileAvatar,
   getProfileSoulDir,
@@ -88,7 +89,7 @@ export class ProfileService {
   async createProfile(request: CreateProfileRequest): Promise<ProfileResponse> {
     const now = new Date().toISOString();
     const profile: StoredProfileRecord = {
-      id: createId("profile"),
+      id: createProfileId(),
       name: request.name.trim(),
       systemPrompt: request.systemPrompt?.trim() ?? "You are a helpful personal assistant.",
       model: request.model ?? null,

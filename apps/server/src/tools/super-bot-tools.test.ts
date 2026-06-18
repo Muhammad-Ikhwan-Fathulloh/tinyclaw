@@ -164,7 +164,7 @@ describe("super bot assign_tool_to_profile", () => {
 
     await expect(
       assignTool.run(
-        { profileId: "profile_default", toolId: "tool_weather" },
+        { profileId: "default", toolId: "tool_weather" },
         { sessionId: SESSION_ID },
       ),
     ).resolves.toBeDefined();

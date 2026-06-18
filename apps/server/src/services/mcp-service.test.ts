@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createId } from "@tinyclaw/core";
+import { createProfileId } from "@tinyclaw/core";
 import { createInMemoryDatabaseAdapter } from "@tinyclaw/db";
 import { McpClientManager } from "./mcp-client-manager";
 import { McpService } from "./mcp-service";
@@ -7,7 +7,7 @@ import { McpService } from "./mcp-service";
 async function seedProfile(db: ReturnType<typeof createInMemoryDatabaseAdapter>) {
   const now = new Date().toISOString();
   const profile = {
-    id: createId("profile"),
+    id: createProfileId(),
     name: "Test Bot",
     systemPrompt: "You are helpful.",
     model: null,

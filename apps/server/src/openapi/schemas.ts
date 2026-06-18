@@ -28,7 +28,7 @@ export const openApiSchemas = {
       channel: { $ref: "#/components/schemas/AgentChannel" },
       profileId: {
         type: "string",
-        description: "Bot profile ID. Defaults to profile_default.",
+        description: "Bot profile ID. Defaults to default.",
       },
     },
   },

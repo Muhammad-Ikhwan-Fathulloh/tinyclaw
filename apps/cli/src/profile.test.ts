@@ -22,7 +22,7 @@ function profile(overrides: Partial<ProfileSummary> & Pick<ProfileSummary, "id" 
 }
 
 const sampleProfiles = [
-  profile({ id: "profile_super_bot", name: "Super Bot", isSuper: true }),
+  profile({ id: "super_bot", name: "Super Bot", isSuper: true }),
   profile({ id: DEFAULT_PROFILE_ID, name: "Default Bot" }),
   profile({ id: "profile_custom", name: "Research Bot" }),
 ];
@@ -32,14 +32,14 @@ describe("parseCliProfileArgs", () => {
     expect(parseCliProfileArgs(["--profile", "profile_custom"])).toEqual({
       profileId: "profile_custom",
     });
-    expect(parseCliProfileArgs(["-p", "profile_super_bot"])).toEqual({
-      profileId: "profile_super_bot",
+    expect(parseCliProfileArgs(["-p", "super_bot"])).toEqual({
+      profileId: "super_bot",
     });
   });
 
   test("reads --profile=value", () => {
-    expect(parseCliProfileArgs(["--profile=profile_default"])).toEqual({
-      profileId: "profile_default",
+    expect(parseCliProfileArgs(["--profile=default"])).toEqual({
+      profileId: "default",
     });
   });
 });
@@ -54,7 +54,7 @@ describe("sortProfilesForPicker", () => {
 describe("resolveProfileInput", () => {
   test("resolves id, name, and index", () => {
     expect(resolveProfileInput(sampleProfiles, "profile_custom")?.name).toBe("Research Bot");
-    expect(resolveProfileInput(sampleProfiles, "Super Bot")?.id).toBe("profile_super_bot");
+    expect(resolveProfileInput(sampleProfiles, "Super Bot")?.id).toBe("super_bot");
     expect(resolveProfileInput(sampleProfiles, "1")?.id).toBe(DEFAULT_PROFILE_ID);
   });
 

@@ -68,7 +68,7 @@ export function TelegramSettingsCard({
 
   const [botToken, setBotToken] = useState("");
   const [showBotToken, setShowBotToken] = useState(false);
-  const [profileId, setProfileId] = useState("profile_default");
+  const [profileId, setProfileId] = useState("default");
   const [hint, setHint] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -127,7 +127,7 @@ export function TelegramSettingsCard({
     setHint(null);
 
     const request: UpdateTelegramSettingsRequest = {
-      profileId: profileId.trim() || "profile_default",
+      profileId: profileId.trim() || "default",
     };
 
     if (botToken.trim()) {

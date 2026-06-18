@@ -90,7 +90,7 @@ export function HistoryPage() {
     const matchedProfile = fromUrl ? profiles.find((profile) => profile.id === fromUrl) : null;
     const defaultProfile =
       matchedProfile ??
-      profiles.find((profile) => profile.id === "profile_default") ??
+      profiles.find((profile) => profile.id === "default") ??
       profiles[0]!;
 
     setProfileId(defaultProfile.id);

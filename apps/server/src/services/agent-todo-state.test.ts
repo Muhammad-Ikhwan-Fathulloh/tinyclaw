@@ -8,7 +8,7 @@ async function createState() {
 
   await db.upsertSession({
     id: "session_test",
-    profileId: "profile_default",
+    profileId: "default",
     channel: "web",
     createdAt: new Date().toISOString(),
     title: null,

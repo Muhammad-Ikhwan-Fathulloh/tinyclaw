@@ -55,10 +55,10 @@ describe("SkillsService", () => {
 
     expect(weather).toBeDefined();
 
-    await db.assignSkillToProfile("profile_default", weather!.id);
+    await db.assignSkillToProfile("default", weather!.id);
 
     const matched = await service.formatMatchedSkillsForPrompt(
-      "profile_default",
+      "default",
       "What's the weather in Jakarta?",
     );
 
@@ -78,10 +78,10 @@ describe("SkillsService", () => {
 
     expect(weather).toBeDefined();
 
-    await db.assignSkillToProfile("profile_default", weather!.id);
+    await db.assignSkillToProfile("default", weather!.id);
 
     const matched = await service.formatMatchedSkillsForPrompt(
-      "profile_default",
+      "default",
       "/skill weather",
     );
 
@@ -97,12 +97,12 @@ describe("SkillsService", () => {
       name: "notes",
       description: "Capture notes for the user.",
       body: "Use this skill when the user asks to save a note.",
-      profileId: "profile_default",
+      profileId: "default",
     });
 
     expect(response.skill.name).toBe("notes");
     expect(response.skill.sourcePath).toContain(
-      join("profiles", "profile_default", "skills", "notes"),
+      join("profiles", "default", "skills", "notes"),
     );
 
     const listed = await service.listSkills();
@@ -116,7 +116,7 @@ describe("SkillsService", () => {
     const created = await service.createSkill({
       name: "notes",
       description: "Capture notes for the user.",
-      profileId: "profile_default",
+      profileId: "default",
     });
 
     await service.deleteSkill(created.skill.id);

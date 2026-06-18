@@ -199,7 +199,7 @@ export function ChatPage() {
           }
 
           const defaultProfile =
-            response.profiles.find((profile) => profile.id === "profile_default") ??
+            response.profiles.find((profile) => profile.id === "default") ??
             response.profiles[0]!;
           return defaultProfile.id;
         });

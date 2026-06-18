@@ -67,7 +67,7 @@ export function WhatsAppSettingsCard({
   const reconnectMutation = useReconnectWhatsApp();
 
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [profileId, setProfileId] = useState("profile_default");
+  const [profileId, setProfileId] = useState("default");
   const [hint, setHint] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [qrWasVisible, setQrWasVisible] = useState(false);
@@ -198,7 +198,7 @@ export function WhatsAppSettingsCard({
     setHint(null);
 
     const request: UpdateWhatsAppSettingsRequest = {
-      profileId: profileId.trim() || "profile_default",
+      profileId: profileId.trim() || "default",
     };
 
     saveMutation.mutate(request, {
@@ -313,7 +313,7 @@ export function WhatsAppSettingsCard({
             }
 
             saveMutation.mutate(
-              { profileId: nextProfileId.trim() || "profile_default" },
+              { profileId: nextProfileId.trim() || "default" },
               {
                 onSuccess: () => {
                   setHint("Reply profile saved.");

@@ -106,11 +106,11 @@ Use symbol search for exact paths — names are stable; line numbers are not.
 
 **Providers are server-only.** OpenAI and Anthropic adapters live under `apps/server/src/providers/`, not in `@tinyclaw/core` or `@tinyclaw/agent`.
 
-**Profiles gate behavior.** A session binds to a profile (`profile_default` when omitted). The profile supplies the system prompt and tool allowlist before any message is handled.
+**Profiles gate behavior.** A session binds to a profile (`default` when omitted). The profile supplies the system prompt and tool allowlist before any message is handled.
 
 **Chat history is in-memory.** `AgentChatSession` holds `ChatMessage[]` in the server process. SQLite stores profiles, tools, session metadata — not message bodies.
 
-**Tools are allowlisted per profile.** The model may only invoke tools assigned to the active profile. Super Bot gets extra runtime tools (meta-tools, `bash`) injected server-side for `profile_super_bot`.
+**Tools are allowlisted per profile.** The model may only invoke tools assigned to the active profile. Super Bot gets extra runtime tools (meta-tools, `bash`) injected server-side for `super_bot`.
 
 **Tool calls use native LLM function calling.** Allowed tools are sent to OpenAI or Anthropic as structured definitions with JSON Schema parameters. The model returns tool calls; the server executes handlers and feeds results back as tool messages. Streaming clients receive `tool_start` / `tool_end` SSE events during execution.
 

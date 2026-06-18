@@ -34,7 +34,7 @@ describe("AutomationService", () => {
         prompt: "Fetch Hacker News headlines",
         trigger: { type: "schedule", cron: "0 8 * * *" },
       },
-      "profile_default",
+      "default",
     );
 
     expect(automation.trigger).toEqual({
@@ -62,7 +62,7 @@ describe("AutomationRunner", () => {
         prompt: "Say hello",
         trigger: { type: "manual" },
       },
-      "profile_default",
+      "default",
     );
 
     const agentService = {
@@ -93,7 +93,7 @@ describe("AutomationRunner", () => {
         prompt: "Say hello",
         trigger: { type: "manual" },
       },
-      "profile_default",
+      "default",
     );
 
     const agentService = {

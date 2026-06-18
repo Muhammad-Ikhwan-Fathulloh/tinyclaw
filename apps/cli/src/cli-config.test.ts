@@ -15,11 +15,11 @@ describe("cli-config", () => {
     process.env.TINYCLAW_CONFIG_DIR = configDir;
 
     try {
-      await saveCliProfileId("profile_super_bot");
-      expect(await loadSavedCliProfileId()).toBe("profile_super_bot");
+      await saveCliProfileId("super_bot");
+      expect(await loadSavedCliProfileId()).toBe("super_bot");
 
       const raw = await readFile(getCliConfigPath(), "utf8");
-      expect(raw).toContain("profile_id=profile_super_bot");
+      expect(raw).toContain("profile_id=super_bot");
     } finally {
       if (previous === undefined) {
         delete process.env.TINYCLAW_CONFIG_DIR;

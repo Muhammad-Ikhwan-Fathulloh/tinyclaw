@@ -92,12 +92,12 @@ function migrateSkillsTables(db: Database): void {
 function migrateAutomationsTable(db: Database): void {
   const columns = db
     .prepare("PRAGMA table_info(automations)")
-    .all() as Array<{ name: string }>;
+    .all() as Array<{ name: string; dflt_value: string | null }>;
   const columnNames = new Set(columns.map((column) => column.name));
 
   if (!columnNames.has("profile_id")) {
     db.exec(`
-      ALTER TABLE automations ADD COLUMN profile_id TEXT NOT NULL DEFAULT 'profile_default';
+      ALTER TABLE automations ADD COLUMN profile_id TEXT NOT NULL DEFAULT 'default';
     `);
   }
 
@@ -106,6 +106,63 @@ function migrateAutomationsTable(db: Database): void {
       ALTER TABLE automations ADD COLUMN enabled INTEGER DEFAULT 1 NOT NULL;
     `);
   }
+
+  const refreshedColumns = db
+    .prepare("PRAGMA table_info(automations)")
+    .all() as Array<{ name: string; dflt_value: string | null }>;
+  const profileIdColumn = refreshedColumns.find((column) => column.name === "profile_id");
+
+  if (normalizeSqlDefaultLiteral(profileIdColumn?.dflt_value) === "profile_default") {
+    recreateAutomationsTableWithDefaultProfile(db);
+  }
+}
+
+function recreateAutomationsTableWithDefaultProfile(db: Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS automations_new (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      definition TEXT NOT NULL,
+      profile_id TEXT NOT NULL DEFAULT 'default',
+      enabled INTEGER DEFAULT 1 NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+    );
+
+    INSERT INTO automations_new (
+      id,
+      name,
+      version,
+      definition,
+      profile_id,
+      enabled,
+      created_at,
+      updated_at
+    )
+    SELECT
+      id,
+      name,
+      version,
+      definition,
+      profile_id,
+      enabled,
+      created_at,
+      updated_at
+    FROM automations;
+
+    DROP TABLE automations;
+    ALTER TABLE automations_new RENAME TO automations;
+  `);
+}
+
+function normalizeSqlDefaultLiteral(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return value.replace(/^'+|'+$/g, "");
 }
 
 function migrateTasksTable(db: Database): void {

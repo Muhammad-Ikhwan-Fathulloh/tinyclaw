@@ -24,7 +24,7 @@ Optional env vars:
 - `TELEGRAM_BOT_TOKEN` — bot token (instead of the config file)
 - `TELEGRAM_ALLOWED_USER_IDS` — skip pairing for specific numeric user IDs
 - `TINYCLAW_SERVER_URL` — server base URL (default `http://127.0.0.1:4310`)
-- `TINYCLAW_TELEGRAM_PROFILE_ID` — bot profile (default `profile_default`)
+- `TINYCLAW_TELEGRAM_PROFILE_ID` — bot profile (default `default`)
 
 ### Commands
 

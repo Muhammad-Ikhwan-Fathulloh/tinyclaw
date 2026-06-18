@@ -4,7 +4,7 @@ import type { TinyClawClient } from "@tinyclaw/client";
 import { loadSavedCliProfileId, saveCliProfileId } from "./cli-config";
 
 /** Matches {@link @tinyclaw/db} `DEFAULT_PROFILE_ID`. */
-export const DEFAULT_PROFILE_ID = "profile_default";
+export const DEFAULT_PROFILE_ID = "default";
 
 export interface CliProfileOptions {
   profileId?: string;

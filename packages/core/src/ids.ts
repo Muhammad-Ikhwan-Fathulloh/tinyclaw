@@ -6,6 +6,10 @@ export function createId(prefix: string): ID {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
+export function createProfileId(): ID {
+  return crypto.randomUUID();
+}
+
 export function createSessionId(): ID {
   return nanoid();
 }

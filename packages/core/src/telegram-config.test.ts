@@ -273,7 +273,7 @@ async function writeTelegramConfig(
   const lines = [
     "# TinyClaw Telegram bridge",
     `bot_token=${config.botToken}`,
-    `profile_id=${config.profileId ?? "profile_default"}`,
+    `profile_id=${config.profileId ?? "default"}`,
   ];
 
   if (config.handshakeCode) {

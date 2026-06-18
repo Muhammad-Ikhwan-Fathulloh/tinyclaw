@@ -24,11 +24,11 @@ describe("createSkillFile", () => {
       name: "weather",
       description: "Get weather forecasts. Use when the user asks about weather.",
       body: "Call the weather tool with a city name.",
-      profileId: "profile_default",
+      profileId: "default",
     });
 
     expect(directory).toBe(
-      join(configDir, "profiles", "profile_default", "skills", "weather"),
+      join(configDir, "profiles", "default", "skills", "weather"),
     );
 
     const content = await readFile(join(directory, "SKILL.md"), "utf8");
@@ -53,7 +53,7 @@ describe("createSkillFile", () => {
     const directory = await createSkillFile({
       name: "notes",
       description: "Capture notes for the user.",
-      profileId: "profile_default",
+      profileId: "default",
     });
 
     await deleteSkillDirectory(directory);
