@@ -536,20 +536,21 @@ export class AgentService {
     channel: AgentChannel,
     profileId = DEFAULT_PROFILE_ID,
   ): Promise<string> {
+    const resolvedProfileId = await this.resolveSessionProfile(profileId);
     const sessionId = createSessionId();
 
     await this.db.upsertSession({
       id: sessionId,
-      profileId,
+      profileId: resolvedProfileId,
       channel,
       createdAt: new Date().toISOString(),
       title: null,
       agentTodos: [],
     });
 
-    const session = await this.buildChatSession(channel, profileId, sessionId);
+    const session = await this.buildChatSession(channel, resolvedProfileId, sessionId);
 
-    this.sessions.set(sessionId, { channel, profileId, session });
+    this.sessions.set(sessionId, { channel, profileId: resolvedProfileId, session });
 
     return sessionId;
   }
@@ -1296,6 +1297,30 @@ export class AgentService {
     }
 
     return profile;
+  }
+
+  private async resolveSessionProfile(profileId: string): Promise<string> {
+    const requestedProfile = await this.db.getProfile(profileId);
+
+    if (requestedProfile) {
+      return profileId;
+    }
+
+    if (profileId !== DEFAULT_PROFILE_ID) {
+      const defaultProfile = await this.db.getProfile(DEFAULT_PROFILE_ID);
+
+      if (defaultProfile) {
+        return DEFAULT_PROFILE_ID;
+      }
+    }
+
+    const fallbackProfile = (await this.db.listProfiles())[0]?.id;
+
+    if (fallbackProfile) {
+      return fallbackProfile;
+    }
+
+    throw new Error("No profiles exist on the server. Create a profile in the web dashboard first.");
   }
 
   private async resolveProfileTools(

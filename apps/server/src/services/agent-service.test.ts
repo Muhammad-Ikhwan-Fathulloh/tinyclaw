@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createInMemoryDatabaseAdapter, DEFAULT_PROFILE_ID } from "@tinyclaw/db";
+import {
+  createInMemoryDatabaseAdapter,
+  createSqliteDatabase,
+  DEFAULT_PROFILE_ID,
+} from "@tinyclaw/db";
 import type { StoredProfileRecord } from "@tinyclaw/db";
 import { AgentService } from "./agent-service";
 
@@ -94,5 +98,31 @@ describe("AgentService branching", () => {
     await expect(service.branchSession(sourceSessionId, 3)).rejects.toThrow(
       "messageIndex is out of bounds.",
     );
+  });
+
+  test("falls back to an existing profile when the requested profile is missing", async () => {
+    const database = await createSqliteDatabase(":memory:");
+    const db = database.adapter;
+    const now = new Date().toISOString();
+
+    try {
+      await db.upsertProfile({
+        id: "profile_custom",
+        name: "Custom",
+        systemPrompt: "You are helpful.",
+        model: null,
+        isSuper: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const service = new AgentService(null, null, db);
+      const sessionId = await service.createSession("web", "missing_profile");
+      const session = await db.getSession(sessionId);
+
+      expect(session?.profileId).toBe("profile_custom");
+    } finally {
+      database.close();
+    }
   });
 });
