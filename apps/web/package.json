@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "vite preview",
     "dev": "bun run scripts/dev.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
