@@ -4,7 +4,7 @@
 # Run:   docker run -d -p 4310:4310 -v tinyclaw-config:/root/.tinyclaw tinyclaw
 
 # --- Build web dashboard (devDependencies stay in this stage only) ---
-FROM oven/bun:1.3-debian AS web-builder
+FROM --platform=linux/amd64 oven/bun:1.3-debian AS web-builder
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -15,7 +15,7 @@ RUN bun install --frozen-lockfile \
   && bun run --filter @tinyclaw/web build
 
 # --- Production runtime (server + workspace packages + built static assets) ---
-FROM oven/bun:1.3-debian AS runtime
+FROM --platform=linux/amd64 oven/bun:1.3-debian AS runtime
 WORKDIR /app
 
 # Install python3 for custom agent tools (minimal footprint)

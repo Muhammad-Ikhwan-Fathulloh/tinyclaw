@@ -48,7 +48,7 @@ docker run -d -p 4310:4310 -v tinyclaw-config:/root/.tinyclaw ghcr.io/ahmadrosid
 
 ```bash
 # Build the image
-docker build -t tinyclaw .
+docker build --platform=linux/amd64 -t tinyclaw .
 
 # Run the container
 docker run -d -p 4310:4310 -v tinyclaw-config:/root/.tinyclaw tinyclaw
