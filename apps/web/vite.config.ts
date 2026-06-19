@@ -13,6 +13,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(root, "src"),
       "@tinyclaw/core/runtime": path.resolve(root, "src/shims/core-runtime.ts"),
+      "@tinyclaw/core/local-auth": path.resolve(root, "src/shims/core-local-auth.ts"),
       "@tinyclaw/core/thinking-content": path.resolve(
         root,
         "../../packages/core/src/thinking-content.ts",
