@@ -39,6 +39,7 @@ function createProvider(options: CreateProviderOptions): ProviderClient {
         apiKey: options.apiKey,
         model,
         ...(baseUrlOverride ? { baseUrl: baseUrlOverride } : {}),
+        customModels: options.instance?.customModels,
       });
     case "anthropic":
       return createAnthropicProvider({

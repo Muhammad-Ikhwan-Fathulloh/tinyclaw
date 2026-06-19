@@ -29,7 +29,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -508,11 +507,6 @@ export function ProfilesPage() {
     [scheduleSave],
   );
 
-  const selectedProfile = useMemo(
-    () => profiles.find((profile) => profile.id === selectedId),
-    [profiles, selectedId],
-  );
-
   const setSelectedId = useCallback(
     (nextProfileId: string | null) => {
       setSelectedIdState(nextProfileId);
@@ -947,23 +941,6 @@ export function ProfilesPage() {
     }
   }
 
-  const profileSubtitle = detail
-    ? [
-        detail.id,
-        detail.isSuper ? "super" : null,
-        `${detail.tools.length} tools`,
-        `${detail.mcpServers.length} MCP`,
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : selectedProfile
-      ? [
-          selectedProfile.id,
-          `${selectedProfile.toolCount} tools`,
-          `${selectedProfile.mcpServerCount} MCP`,
-        ].join(" · ")
-      : "";
-
   if (profilesLoading && profiles.length === 0) {
     return <PageState message="Loading profiles…" />;
   }
@@ -1027,6 +1004,20 @@ export function ProfilesPage() {
                 <PlusIcon className="size-4" aria-hidden />
                 New
               </Button>
+
+              {selectedId && detail && !detail.isSuper ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  className="shrink-0 text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2Icon className="size-4" aria-hidden />
+                  Delete
+                </Button>
+              ) : null}
             </div>
 
             {profiles.length > 0 ? (
@@ -1095,6 +1086,22 @@ export function ProfilesPage() {
                 </div>
               )}
 
+              {selectedId && detail && !detail.isSuper ? (
+                <div className="mt-4 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    className="w-full text-destructive hover:text-destructive"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2Icon className="size-4" aria-hidden />
+                    Delete
+                  </Button>
+                </div>
+              ) : null}
+
             </aside>
 
             <div className="min-w-0 p-4 sm:p-5">
@@ -1112,7 +1119,8 @@ export function ProfilesPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="mb-3">
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <input
                       ref={avatarInputRef}
                       type="file"
@@ -1130,81 +1138,28 @@ export function ProfilesPage() {
                         onPick={() => avatarInputRef.current?.click()}
                       />
                       <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <label htmlFor="profile-name" className="mb-1 block text-xs font-medium text-muted-foreground">
-                              Name
-                            </label>
-                            <Input
-                              id="profile-name"
-                              value={editName}
-                              disabled={busy}
-                              className="h-8 min-w-0 font-semibold"
-                              onChange={(event) => handleEditNameChange(event.target.value)}
-                              onBlur={() => void flushSave()}
+                        <div className="min-w-0">
+                          <label htmlFor="profile-name" className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Name
+                          </label>
+                          <Input
+                            id="profile-name"
+                            value={editName}
+                            disabled={busy}
+                            className="h-8 min-w-0 font-semibold"
+                            onChange={(event) => handleEditNameChange(event.target.value)}
+                            onBlur={() => void flushSave()}
+                          />
+                          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                            {detail.isSuper ? (
+                              <span className="scope-badge bg-muted text-muted-foreground">super</span>
+                            ) : null}
+                            <ProfileSaveIndicator
+                              inline
+                              saveStatus={saveStatus}
+                              nameMissing={isDirty && !editName.trim()}
                             />
-                            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-                              <span className="type-body">{profileSubtitle}</span>
-                              {detail.isSuper ? (
-                                <span className="scope-badge bg-muted text-muted-foreground">super</span>
-                              ) : null}
-                              <ProfileSaveIndicator
-                                inline
-                                saveStatus={saveStatus}
-                                nameMissing={isDirty && !editName.trim()}
-                              />
-                            </div>
                           </div>
-                          {!detail.isSuper ? (
-                            <Dialog open={deleteOpen} onOpenChange={handleDeleteOpenChange}>
-                              <DialogTrigger
-                                render={
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={busy}
-                                    className="shrink-0 text-destructive hover:text-destructive"
-                                  />
-                                }
-                              >
-                                <Trash2Icon className="size-4" aria-hidden />
-                                Delete
-                              </DialogTrigger>
-                              <DialogContent className="gap-6 p-6 sm:max-w-md">
-                                <DialogHeader className="gap-3">
-                                  <DialogTitle>Delete profile?</DialogTitle>
-                                  <DialogDescription>
-                                    This removes {detail.name} and its chat history. This cannot be
-                                    undone.
-                                  </DialogDescription>
-                                </DialogHeader>
-
-                                <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 pb-2 sm:justify-end">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={busy}
-                                    onClick={() => setDeleteOpen(false)}
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    disabled={busy}
-                                    onClick={() => void handleDeleteConfirm()}
-                                  >
-                                    {deleteMutation.isPending ? (
-                                      <Spinner className="size-4" />
-                                    ) : (
-                                      "Delete"
-                                    )}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          ) : null}
                         </div>
                         <ExpandableTextarea
                           label="System prompt"
@@ -1305,6 +1260,7 @@ export function ProfilesPage() {
                         </div>
                       </Field>
                     </div>
+                  </div>
                   </div>
 
                     <div className="border-t border-border pt-5">
@@ -1727,6 +1683,38 @@ export function ProfilesPage() {
         }}
         onSubmit={handleCreateMcpServer}
       />
+
+      <Dialog open={deleteOpen} onOpenChange={handleDeleteOpenChange}>
+        <DialogContent className="gap-6 p-6 sm:max-w-md">
+          <DialogHeader className="gap-3">
+            <DialogTitle>Delete profile?</DialogTitle>
+            <DialogDescription>
+              {detail
+                ? `This removes ${detail.name} and its chat history. This cannot be undone.`
+                : "This removes the profile and its chat history. This cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 pb-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => void handleDeleteConfirm()}
+            >
+              {deleteMutation.isPending ? <Spinner className="size-4" /> : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={removeConfirm !== null}

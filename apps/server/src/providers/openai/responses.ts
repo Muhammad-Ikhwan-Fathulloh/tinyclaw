@@ -1,6 +1,7 @@
 import type {
   ChatCompletionResult,
   ChatMessage,
+  CustomModelEntry,
   GenerateChatInput,
   LlmToolDefinition,
   StreamChatHandlers,
@@ -17,6 +18,7 @@ import {
   readRecord,
   readSseEvents,
 } from "../shared";
+import { openAIModelSupportsThinking } from "./thinking";
 
 type ResponseItem = Record<string, unknown>;
 
@@ -26,8 +28,14 @@ export async function generateOpenAIResponsesChat(options: {
   input: GenerateChatInput;
   stream: boolean;
   handlers?: StreamChatHandlers;
+  customModels?: CustomModelEntry[];
 }): Promise<ChatCompletionResult> {
-  const body = await buildResponsesRequestBody(options.model, options.input, options.stream);
+  const body = await buildResponsesRequestBody(
+    options.model,
+    options.input,
+    options.stream,
+    options.customModels,
+  );
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -59,6 +67,7 @@ async function buildResponsesRequestBody(
   model: string,
   input: GenerateChatInput,
   stream: boolean,
+  customModels?: CustomModelEntry[],
 ) {
   const tools = buildResponsesTools(input.tools, input.providerOptions?.webSearch ?? false);
 
@@ -67,15 +76,20 @@ async function buildResponsesRequestBody(
     instructions: input.system,
     input: await toResponsesInput(input.messages),
     ...(tools.length > 0 ? { tools } : {}),
-    ...buildOpenAIReasoningRequest(input),
+    ...buildOpenAIReasoningRequest(model, input, customModels),
     ...(stream ? { stream: true } : {}),
   };
 }
 
 function buildOpenAIReasoningRequest(
+  model: string,
   input: GenerateChatInput,
+  customModels?: CustomModelEntry[],
 ): Record<string, unknown> {
-  if (!input.providerOptions?.thinking?.enabled) {
+  if (
+    !input.providerOptions?.thinking?.enabled ||
+    !openAIModelSupportsThinking(model, customModels)
+  ) {
     return {};
   }
 

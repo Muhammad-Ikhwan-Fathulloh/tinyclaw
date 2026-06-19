@@ -1,6 +1,7 @@
 import type {
   ChatCompletionResult,
   ChatMessage,
+  CustomModelEntry,
   GenerateChatInput,
   GenerateTextInput,
   LlmToolDefinition,
@@ -12,6 +13,7 @@ import type {
 import { messagesIncludeUserDocuments, messagesIncludeUserImages, toOpenAIChatUserContent } from "@tinyclaw/core";
 import { generateOpenAIResponsesChat } from "./responses";
 import { buildChatCompletionResult, parseJsonRecord, readSseEvents } from "../shared";
+import { openAIModelSupportsThinking } from "./thinking";
 
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 
@@ -21,6 +23,7 @@ export interface OpenAIProviderOptions {
   baseUrl?: string;
   providerName?: ProviderName;
   extraHeaders?: Record<string, string>;
+  customModels?: CustomModelEntry[];
 }
 
 interface OpenAIClientConfig {
@@ -43,6 +46,7 @@ export function createOpenAIProvider(
     label: providerLabel(options.providerName ?? "openai"),
   };
   const useResponsesApi = client.providerName === "openai" && client.baseUrl === DEFAULT_OPENAI_BASE_URL;
+  const customModels = options.customModels;
 
   return {
     name: client.providerName,
@@ -62,12 +66,13 @@ export function createOpenAIProvider(
       });
     },
     generateChat(input: GenerateChatInput) {
-      if (useResponsesApi && usesResponsesApi(input)) {
+      if (useResponsesApi && usesResponsesApi(input, model, customModels)) {
         return generateOpenAIResponsesChat({
           apiKey: options.apiKey,
           model,
           input,
           stream: false,
+          customModels,
         });
       }
 
@@ -79,13 +84,14 @@ export function createOpenAIProvider(
       });
     },
     streamChat(input: GenerateChatInput, handlers: StreamChatHandlers) {
-      if (useResponsesApi && usesResponsesApi(input)) {
+      if (useResponsesApi && usesResponsesApi(input, model, customModels)) {
         return generateOpenAIResponsesChat({
           apiKey: options.apiKey,
           model,
           input,
           stream: true,
           handlers,
+          customModels,
         });
       }
 
@@ -128,12 +134,19 @@ function buildRequestHeaders(client: OpenAIClientConfig): Record<string, string>
   };
 }
 
-function usesResponsesApi(input: GenerateChatInput): boolean {
+function usesResponsesApi(
+  input: GenerateChatInput,
+  model: string,
+  customModels?: CustomModelEntry[],
+): boolean {
   if (messagesIncludeUserDocuments(input.messages)) {
     return true;
   }
 
-  if (input.providerOptions?.thinking?.enabled) {
+  if (
+    input.providerOptions?.thinking?.enabled &&
+    openAIModelSupportsThinking(model, customModels)
+  ) {
     return true;
   }
 

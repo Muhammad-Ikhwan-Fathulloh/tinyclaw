@@ -101,4 +101,82 @@ describe("OpenAI provider streaming", () => {
     expect(thinking).toEqual(["Plan"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  test("streams chat completion chunks when thinking is enabled for an unsupported model", async () => {
+    const fetchMock = mock(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe("https://api.openai.com/v1/chat/completions");
+
+      return new Response(
+        streamFromChunks([
+          'data:{"choices":[{"delta":{"content":"Hi"}}]}\r\n\r\n',
+          "data:[DONE]\r\n\r\n",
+        ]),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = createOpenAIProvider({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+    });
+
+    const result = await provider.streamChat(
+      {
+        system: "You are helpful.",
+        messages: [{ role: "user", content: "Say hi" }],
+        providerOptions: {
+          thinking: { enabled: true, effort: "medium" },
+        },
+      },
+      {
+        onChunk: () => {},
+      },
+    );
+
+    expect(result.content).toBe("Hi");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("omits reasoning from responses api for unsupported models", async () => {
+    const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://api.openai.com/v1/responses");
+      const body = JSON.parse(String(init?.body)) as { reasoning?: unknown };
+      expect(body.reasoning).toBeUndefined();
+
+      return new Response(
+        streamFromChunks([
+          'event: response.output_text.delta\r\ndata:{"type":"response.output_text.delta","delta":"Hi"}\r\n\r\n',
+          'data:{"type":"response.output_item.done","item":{"id":"msg_1","type":"message","content":[{"type":"output_text","text":"Hi"}]}}\r\n\r\n',
+          "data:[DONE]\r\n\r\n",
+        ]),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = createOpenAIProvider({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+    });
+
+    const result = await provider.streamChat(
+      {
+        system: "You are helpful.",
+        messages: [{ role: "user", content: "Search the web" }],
+        providerOptions: {
+          thinking: { enabled: true, effort: "medium" },
+          webSearch: true,
+        },
+      },
+      {
+        onChunk: () => {},
+      },
+    );
+
+    expect(result.content).toBe("Hi");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
