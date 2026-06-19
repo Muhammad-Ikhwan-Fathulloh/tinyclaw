@@ -100,6 +100,23 @@ async function buildMessages(system: string, messages: ChatMessage[]) {
   return toOpenAIMessages(system, messages) as OpenAI.Chat.ChatCompletionMessageParam[];
 }
 
+function readReasoningText(value: unknown): string | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const direct =
+    typeof record.reasoning === "string"
+      ? record.reasoning
+      : typeof record.reasoning_content === "string"
+        ? record.reasoning_content
+        : undefined;
+
+  const trimmed = direct?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 async function requestChatCompletion(
   client: OpenAI,
   label: string,
@@ -136,10 +153,7 @@ async function requestChatCompletion(
         | undefined,
     );
     const content = message?.content ?? "";
-    const thinking =
-      typeof (message as { reasoning?: string | null } | undefined)?.reasoning === "string"
-        ? (message as { reasoning?: string | null }).reasoning
-        : undefined;
+    const thinking = readReasoningText(message);
 
     if (!content.trim() && toolCalls.length === 0 && !thinking?.trim()) {
       throw new Error(`${label} returned an empty response.`);
@@ -191,10 +205,7 @@ async function streamChatCompletion(
         options.handlers.onChunk(delta.content);
       }
 
-      const reasoningDelta =
-        typeof (delta as { reasoning?: string } | undefined)?.reasoning === "string"
-          ? (delta as { reasoning?: string }).reasoning
-          : undefined;
+      const reasoningDelta = readReasoningText(delta);
 
       if (reasoningDelta) {
         thinking += reasoningDelta;
