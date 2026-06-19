@@ -1,13 +1,10 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Database } from "bun:sqlite";
 
 export function migrateDatabase(db: Database): void {
-  const schemaPath = join(
-    dirname(fileURLToPath(import.meta.url)),
-    "../sql/schema.sql",
-  );
+  const schemaPath = resolveSchemaPath();
   const sql = readFileSync(schemaPath, "utf8");
 
   db.exec(sql);
@@ -20,6 +17,27 @@ export function migrateDatabase(db: Database): void {
   migrateUsersTable(db);
   migrateBrowserSessionsTable(db);
   migrateLegacyProfileIds(db);
+}
+
+export function resolveSchemaPath(options: {
+  moduleDir?: string;
+  cwd?: string;
+} = {}): string {
+  const moduleDir = options.moduleDir ?? dirname(fileURLToPath(import.meta.url));
+  const cwd = options.cwd ?? process.cwd();
+  const candidates = [
+    join(moduleDir, "../sql/schema.sql"),
+    resolve(cwd, "packages/db/sql/schema.sql"),
+    resolve(cwd, "../packages/db/sql/schema.sql"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
 }
 
 function migrateProfilesTable(db: Database): void {

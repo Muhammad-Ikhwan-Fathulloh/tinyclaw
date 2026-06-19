@@ -1,6 +1,10 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { migrateDatabase } from "./migrate";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { migrateDatabase, resolveSchemaPath } from "./migrate";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 describe("legacy profile id migration", () => {
   test("renames legacy default and super bot profiles and preserves references", () => {
@@ -172,6 +176,23 @@ describe("legacy profile id migration", () => {
     } finally {
       db.close();
     }
+  });
+});
+
+describe("schema path resolution", () => {
+  test("resolves schema.sql from the db package during source execution", () => {
+    const schemaPath = resolveSchemaPath();
+
+    expect(schemaPath).toBe(resolve(repoRoot, "packages/db/sql/schema.sql"));
+  });
+
+  test("falls back to the workspace schema when running from the bundled server output", () => {
+    const schemaPath = resolveSchemaPath({
+      moduleDir: resolve(repoRoot, "apps/server/dist"),
+      cwd: repoRoot,
+    });
+
+    expect(schemaPath).toBe(resolve(repoRoot, "packages/db/sql/schema.sql"));
   });
 });
 
