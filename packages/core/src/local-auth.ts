@@ -65,7 +65,11 @@ export async function resolveLocalAuthToken(): Promise<string> {
   const legacyToken = config?.localAuthToken?.trim();
   if (legacyToken) {
     await persistLocalAuthToken(legacyToken);
-    await saveUserConfig({ ...config, localAuthTokenHash: hashLocalAuthToken(legacyToken) });
+    await saveUserConfig({
+      ...config,
+      defaultProviderId: config?.defaultProviderId ?? null,
+      localAuthTokenHash: hashLocalAuthToken(legacyToken),
+    });
     return legacyToken;
   }
 
