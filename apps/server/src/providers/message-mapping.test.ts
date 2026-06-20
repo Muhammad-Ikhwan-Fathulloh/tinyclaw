@@ -63,6 +63,33 @@ describe("provider user content mapping", () => {
     });
   });
 
+  test("toAnthropicMessages inlines text/plain documents for opencode_go", async () => {
+    const text = "alpha beta gamma";
+    const data = Buffer.from(text, "utf8").toString("base64");
+    const message: ChatMessage = {
+      role: "user",
+      content: [
+        { type: "text", text: "Summarize" },
+        {
+          type: "document",
+          filename: "Pasted text (3 words).txt",
+          mediaType: "text/plain",
+          data,
+        },
+      ],
+    };
+
+    const result = await toAnthropicMessages([message], "opencode_go");
+    const user = result[0];
+    const blocks = user?.content as Array<Record<string, unknown>>;
+
+    expect(blocks[0]).toEqual({ type: "text", text: "Summarize" });
+    expect(blocks[1]).toEqual({
+      type: "text",
+      text: "[File: Pasted text (3 words).txt]\nalpha beta gamma",
+    });
+  });
+
   test("toGeminiContents maps image and document parts", async () => {
     const imageResult = await toGeminiContents([multimodalUserMessage]);
     expect(imageResult[0]?.parts?.[0]?.text).toBe("What is this?");

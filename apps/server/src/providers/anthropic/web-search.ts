@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   GenerateChatInput,
   LlmToolDefinition,
+  ProviderName,
   StreamChatHandlers,
   ToolCall,
 } from "@tinyclaw/core";
@@ -43,6 +44,7 @@ export function buildAnthropicTools(
 
 export async function toAnthropicMessages(
   messages: ChatMessage[],
+  provider: ProviderName = "anthropic",
 ): Promise<MessageParam[]> {
   const result: MessageParam[] = [];
 
@@ -50,7 +52,7 @@ export async function toAnthropicMessages(
     if (message.role === "user") {
       result.push({
         role: "user",
-        content: (await toAnthropicUserContent(message.content)) as MessageParam["content"],
+        content: (await toAnthropicUserContent(message.content, provider)) as MessageParam["content"],
       });
       continue;
     }
@@ -161,12 +163,13 @@ export interface ContinueAnthropicUntilDoneOptions {
   thinking?: GenerateChatInput["providerOptions"];
   stream: boolean;
   handlers?: StreamChatHandlers;
+  provider?: ProviderName;
 }
 
 export async function continueAnthropicUntilDone(
   options: ContinueAnthropicUntilDoneOptions,
 ): Promise<ChatCompletionResult> {
-  let apiMessages = await toAnthropicMessages(options.messages);
+  let apiMessages = await toAnthropicMessages(options.messages, options.provider);
   let combinedContent: AnthropicContentBlock[] = [];
   const tools = buildAnthropicTools(options.tools, options.webSearch);
   const thinkingRequest = buildAnthropicThinkingRequest(options.thinking);

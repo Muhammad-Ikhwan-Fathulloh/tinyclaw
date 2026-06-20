@@ -106,6 +106,7 @@ export function createAnthropicProvider(
             webSearch: input.providerOptions?.webSearch ?? false,
             thinking: input.providerOptions,
             stream: false,
+            provider: name,
           }),
         label,
       );
@@ -123,6 +124,7 @@ export function createAnthropicProvider(
             thinking: input.providerOptions,
             stream: true,
             handlers,
+            provider: name,
           }),
         label,
       );
