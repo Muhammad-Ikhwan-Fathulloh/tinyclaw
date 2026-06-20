@@ -1,6 +1,11 @@
 import type { DocumentAttachment, ImageAttachment, MessageContentPart } from "@tinyclaw/core/contract";
 import { normalizeDocumentMediaType, parseDataUrl, parseDocumentDataUrl } from "@tinyclaw/core/message-content";
 import type { FileUIPart } from "ai";
+import {
+  documentDisplayFromContentPart,
+  documentDisplayFromFilePart,
+  type DisplayDocument,
+} from "@/lib/pasted-text";
 
 export const IMAGE_ACCEPT =
   "image/jpeg,image/png,image/gif,image/webp";
@@ -81,17 +86,28 @@ export function userContentToDisplayImages(
     }));
 }
 
+export function filePartsToDisplayDocuments(files: FileUIPart[]): DisplayDocument[] {
+  const documents: DisplayDocument[] = [];
+
+  for (const file of files) {
+    if (!isDocumentFilePart(file)) {
+      continue;
+    }
+
+    documents.push(documentDisplayFromFilePart(file));
+  }
+
+  return documents;
+}
+
 export function userContentToDisplayDocuments(
   content: string | MessageContentPart[],
-): Array<{ filename: string; mediaType: string }> {
+): DisplayDocument[] {
   if (typeof content === "string") {
     return [];
   }
 
   return content
     .filter((part): part is Extract<typeof part, { type: "document" }> => part.type === "document")
-    .map((part) => ({
-      filename: part.filename,
-      mediaType: part.mediaType,
-    }));
+    .map((part) => documentDisplayFromContentPart(part));
 }

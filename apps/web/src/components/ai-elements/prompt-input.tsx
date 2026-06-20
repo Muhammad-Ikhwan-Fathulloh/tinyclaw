@@ -26,6 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { countWords, createPastedTextFile, normalizePastedText } from "@/lib/pasted-text";
 import type { ChatStatus, FileUIPart, SourceDocumentUIPart } from "ai";
 import {
   CornerDownLeftIcon,
@@ -550,18 +551,26 @@ export const PromptInput = ({
         return true;
       }
 
+      const fileType = f.type.split(";")[0]?.trim().toLowerCase() ?? "";
+      const fileName = f.name.toLowerCase();
       const patterns = accept
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
 
       return patterns.some((pattern) => {
+        const normalizedPattern = pattern.toLowerCase();
+
         if (pattern.endsWith("/*")) {
-          // e.g: image/* -> image/
           const prefix = pattern.slice(0, -1);
-          return f.type.startsWith(prefix);
+          return fileType.startsWith(prefix);
         }
-        return f.type === pattern;
+
+        if (pattern.startsWith(".")) {
+          return fileName.endsWith(normalizedPattern);
+        }
+
+        return fileType === normalizedPattern;
       });
     },
     [accept]
@@ -975,13 +984,16 @@ export const PromptInputBody = ({
 
 export type PromptInputTextareaProps = ComponentProps<
   typeof InputGroupTextarea
->;
+> & {
+  longPasteWordThreshold?: number;
+};
 
 export const PromptInputTextarea = ({
   onChange,
   onKeyDown,
   className,
   placeholder = "What would you like to know?",
+  longPasteWordThreshold,
   ...props
 }: PromptInputTextareaProps) => {
   const controller = useOptionalPromptInputController();
@@ -1057,9 +1069,20 @@ export const PromptInputTextarea = ({
       if (files.length > 0) {
         event.preventDefault();
         attachments.add(files);
+        return;
+      }
+
+      if (longPasteWordThreshold != null) {
+        const pastedText = event.clipboardData?.getData("text/plain") ?? "";
+        const normalized = normalizePastedText(pastedText);
+
+        if (countWords(normalized) > longPasteWordThreshold) {
+          event.preventDefault();
+          attachments.add([createPastedTextFile(normalized)]);
+        }
       }
     },
-    [attachments]
+    [attachments, longPasteWordThreshold]
   );
 
   const handleCompositionEnd = useCallback(() => setIsComposing(false), []);

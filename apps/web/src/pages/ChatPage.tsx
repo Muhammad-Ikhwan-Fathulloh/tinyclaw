@@ -7,7 +7,11 @@ import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { useAppContext } from "@/context/app-context";
 import { useBranchSessionMutation, useUpdateProfileMutation } from "@/hooks/use-resource-mutations";
-import { filePartsToDocumentAttachments, filePartsToImageAttachments } from "@/lib/chat-images";
+import {
+  filePartsToDisplayDocuments,
+  filePartsToDocumentAttachments,
+  filePartsToImageAttachments,
+} from "@/lib/chat-images";
 import {
   buildChatBasePath,
   buildChatPath,
@@ -349,6 +353,7 @@ export function ChatPage() {
     async (text: string, files: FileUIPart[] = [], options: SendMessageOptions = {}) => {
       const images = filePartsToImageAttachments(files);
       const documents = filePartsToDocumentAttachments(files);
+      const displayDocuments = filePartsToDisplayDocuments(files);
 
       if ((!text.trim() && images.length === 0 && documents.length === 0) || !profileId || busy) {
         return;
@@ -384,10 +389,7 @@ export function ChatPage() {
           mediaType: image.mediaType,
           url: `data:${image.mediaType};base64,${image.data}`,
         })),
-        documents.map((document) => ({
-          filename: document.filename,
-          mediaType: document.mediaType,
-        })),
+        displayDocuments.length > 0 ? displayDocuments : undefined,
         { thinkingEnabled: showThinking },
       );
 

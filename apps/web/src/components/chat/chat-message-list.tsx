@@ -27,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatSessionTimestamp, type ChatListItem } from "@/lib/chat-history";
+import { isPastedTextDocument } from "@/lib/pasted-text";
+import { TextAttachmentPreview } from "@/components/chat/text-attachment-preview";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageListProps {
@@ -329,6 +331,15 @@ function AssistantMessageActions({
 }
 
 function UserMessageContent({ message }: { message: ChatListItem }) {
+  const pastedTextDocuments =
+    message.documents?.filter((document) =>
+      isPastedTextDocument(document.filename, document.mediaType),
+    ) ?? [];
+  const otherDocuments =
+    message.documents?.filter(
+      (document) => !isPastedTextDocument(document.filename, document.mediaType),
+    ) ?? [];
+
   return (
     <div className="space-y-2">
       {message.images?.length ? (
@@ -343,9 +354,19 @@ function UserMessageContent({ message }: { message: ChatListItem }) {
           ))}
         </div>
       ) : null}
-      {message.documents?.length ? (
+      {pastedTextDocuments.length ? (
         <div className="flex flex-wrap gap-2">
-          {message.documents.map((document) => (
+          {pastedTextDocuments.map((document) => (
+            <TextAttachmentPreview
+              key={`${document.filename}-${document.mediaType}`}
+              filename={document.filename}
+            />
+          ))}
+        </div>
+      ) : null}
+      {otherDocuments.length ? (
+        <div className="flex flex-wrap gap-2">
+          {otherDocuments.map((document) => (
             <div
               key={`${document.filename}-${document.mediaType}`}
               className="inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-muted px-3 py-2"

@@ -47,7 +47,12 @@ import {
   composerToolbarClass,
 } from "@/lib/chat-stream";
 import { AgentTodoPanel } from "@/components/chat/AgentTodoPanel";
+import { TextAttachmentPreview } from "@/components/chat/text-attachment-preview";
 import { cn } from "@/lib/utils";
+import {
+  isPastedTextDocument,
+  LONG_PASTE_WORD_THRESHOLD,
+} from "@/lib/pasted-text";
 import {
   encodeModelSelection,
   modelSelectContentMaxHeightClass,
@@ -164,6 +169,7 @@ export function ChatComposer(props: ChatComposerProps) {
                   className="min-h-11 max-h-36 px-1 py-1.5 text-base leading-relaxed placeholder:text-muted-foreground sm:min-h-10 sm:text-sm"
                   placeholder={placeholder}
                   disabled={disabled}
+                  longPasteWordThreshold={LONG_PASTE_WORD_THRESHOLD}
                 />
               </PromptInputBody>
               <PromptInputFooter
@@ -213,6 +219,7 @@ export function ChatComposer(props: ChatComposerProps) {
             }
             placeholder={placeholder}
             disabled={disabled}
+            longPasteWordThreshold={isMinimal ? undefined : LONG_PASTE_WORD_THRESHOLD}
           />
         </PromptInputBody>
         <PromptInputFooter
@@ -433,43 +440,61 @@ function ChatAttachmentHeader() {
   return (
     <PromptInputHeader className="pb-0">
       <div className="flex w-full flex-wrap gap-2 border-b border-border/60 pb-3">
-        {attachments.files.map((file) => (
-          <div
-            key={file.id}
-            className={cn(
-              "relative shrink-0 overflow-hidden rounded-lg border border-border bg-muted",
-              isImageFilePart(file) ? "size-[4.5rem]" : "flex max-w-full items-center gap-2 px-3 py-2",
-            )}
-          >
-            {isImageFilePart(file) ? (
-              <img
-                src={file.url}
-                alt={file.filename ?? "attachment preview"}
-                className="size-full object-cover"
+        {attachments.files.map((file) => {
+          const filename = file.filename ?? "Document";
+          const mediaType = file.mediaType ?? "";
+
+          if (isImageFilePart(file)) {
+            return (
+              <div
+                key={file.id}
+                className="relative size-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-border bg-muted"
+              >
+                <img
+                  src={file.url}
+                  alt={filename}
+                  className="size-full object-cover"
+                />
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 flex size-7 items-center justify-center rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                  aria-label={`Remove ${filename}`}
+                  onClick={() => attachments.remove(file.id)}
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </div>
+            );
+          }
+
+          if (isPastedTextDocument(filename, mediaType)) {
+            return (
+              <TextAttachmentPreview
+                key={file.id}
+                filename={filename}
+                onRemove={() => attachments.remove(file.id)}
               />
-            ) : (
-              <>
-                <FileTextIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="truncate text-xs font-medium text-foreground">
-                  {file.filename ?? "Document"}
-                </span>
-              </>
-            )}
-            <button
-              type="button"
-              className={cn(
-                "absolute flex items-center justify-center rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background",
-                isImageFilePart(file)
-                  ? "top-1 right-1 size-7"
-                  : "top-1 right-1 size-6",
-              )}
-              aria-label={`Remove ${file.filename ?? "attachment"}`}
-              onClick={() => attachments.remove(file.id)}
+            );
+          }
+
+          return (
+            <div
+              key={file.id}
+              className="relative flex max-w-full shrink-0 items-center gap-2 overflow-hidden rounded-lg border border-border bg-muted px-3 py-2"
             >
-              <XIcon className="size-3.5" />
-            </button>
-          </div>
-        ))}
+              <FileTextIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="truncate text-xs font-medium text-foreground">{filename}</span>
+              <button
+                type="button"
+                className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                aria-label={`Remove ${filename}`}
+                onClick={() => attachments.remove(file.id)}
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </PromptInputHeader>
   );
